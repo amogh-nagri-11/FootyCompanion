@@ -1,0 +1,81 @@
+:root {
+  /* Neutrals carry the whole layout; the two team accents are the only colour. */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e3e6ea;
+  --border-strong: #cbd1d8;
+
+  --text: #14181d;
+  --text-muted: #5c6773;
+  --text-faint: #8b95a1;
+
+  --home: #1d4ed8;
+  --home-soft: #e8eefc;
+  --away: #b45309;
+  --away-soft: #fdf1e0;
+  --draw: #9aa4b0;
+  --draw-soft: #eef0f3;
+
+  --live: #17803d;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  /* Tabular figures keep the score and minute from jittering as they change. */
+  --font-numeric: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--home);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

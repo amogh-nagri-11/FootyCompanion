@@ -1,0 +1,103 @@
+.layout {
+  display: grid;
+  gap: 14px;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.bannerEnded {
+  composes: banner;
+  background: var(--draw-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.bannerError {
+  composes: banner;
+  background: var(--danger-soft);
+  border-color: #f5c6c2;
+  color: var(--danger);
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--home);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.placeholder {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.placeholderTitle {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.placeholderText {
+  margin: 0 auto;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 40ch;
+}
+
+.bannerSlot {
+  grid-area: banner;
+}
+.boardSlot {
+  grid-area: board;
+}
+.probSlot {
+  grid-area: prob;
+}
+.feedSlot {
+  grid-area: feed;
+}
+
+/* Mobile: one column, in reading order — score, probability, then the feed. */
+.layout {
+  grid-template-areas:
+    'banner'
+    'board'
+    'prob'
+    'feed';
+}
+
+/* Wide: score across the top, the feed given the left (larger) column because
+   it is the thing people actually read, probability alongside it. */
+@media (min-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+    grid-template-areas:
+      'banner banner'
+      'board  board'
+      'feed   prob';
+    gap: 16px;
+    align-items: start;
+  }
+}
