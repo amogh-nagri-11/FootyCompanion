@@ -1,8 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { verifyToken } from '../auth.js';
+import { subscribe, unsubscribe, broadcast, hasSubscribers } from '../services/connectionRegistry.js';
+import { startPolling } from '../services/matchPoller.js';
 
 export async function wsRoutes(app: FastifyInstance) {
-  app.get('/ws/match/:matchId', { websocket: true }, (connection, req) => {
+  app.get('/ws/match/:matchId', { websocket: true }, async (connection, req) => {
     const token = (req.query as { token?: string }).token;
 
     if (!token) {
@@ -12,7 +14,7 @@ export async function wsRoutes(app: FastifyInstance) {
 
     let user;
     try {
-      user = verifyToken(token);
+      user = await verifyToken(token);
     } catch {
       connection.close(4002, 'Invalid token');
       return;
@@ -21,14 +23,23 @@ export async function wsRoutes(app: FastifyInstance) {
     const { matchId } = req.params as { matchId: string };
     app.log.info(`User ${user.id} connected to match ${matchId}`);
 
-    connection.send(JSON.stringify({ type: 'connected', matchId }));
+    subscribe(matchId, connection);
 
-    connection.on('message', (message: Buffer) => {
-      app.log.info(`Received: ${message.toString()}`);
+    // start polling this match if it isn't already being tracked
+    startPolling(matchId, (id, newEvents, state, winProb) => {
+      broadcast(id, { type: 'update', events: newEvents, state, winProb });
     });
+
+    connection.send(JSON.stringify({ type: 'connected', matchId }));
 
     connection.on('close', () => {
       app.log.info(`User ${user.id} disconnected from match ${matchId}`);
+      unsubscribe(matchId, connection);
+
+      if (!hasSubscribers(matchId)) {
+        app.log.info(`No subscribers left for ${matchId}, stopping poll`);
+        // stopPolling(matchId) — intentionally not calling this yet, see note below
+      }
     });
   });
 }

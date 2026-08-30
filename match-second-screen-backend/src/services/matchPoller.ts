@@ -9,6 +9,7 @@ const activePolls = new Map<string, NodeJS.Timeout>();
 //designed to poll the api every 10 seconds because of limit constraints 
 //if no limit constraints polling should match the api's data refresh rate
 async function pollOnce(matchId: string, onNewEvents: EventCallback) {
+  console.log(`Polling ${matchId}...`); // temporary
   const state = await fetchLiveMatch(matchId);
 
   const seenKey = `match:${matchId}:seen_events`;

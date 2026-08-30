@@ -22,12 +22,4 @@ export async function healthRoutes(app: FastifyInstance) {
     const match = await fetchLiveMatch('test123');
     return match;
   });
-
-  app.get('/health/poller-test', async () => {
-    startPolling('test123', (matchId, events, state, winProb) => {
-      console.log(`New events for ${matchId}:`, events);
-      console.log(`Win prob:`, winProb);
-    }, 5000);
-    return { started: true };
-  });
 }

@@ -20,19 +20,42 @@ export interface LiveMatchState {
   events: MatchEvent[];
 }
 
+const mockMatchState = new Map<string, { minute: number; homeScore: number; awayScore: number }>();
+
 async function fetchMockLiveMatch(matchId: string): Promise<LiveMatchState> {
-  const minute = Math.floor(Math.random() * 90);
+  if (!mockMatchState.has(matchId)) {
+    mockMatchState.set(matchId, { minute: 0, homeScore: 0, awayScore: 0 });
+  }
+
+  const state = mockMatchState.get(matchId)!;
+  state.minute += 2; // advance ~2 mock-minutes per poll
+
+  const events: MatchEvent[] = [];
+
+  // deterministic: a goal every 15 minutes, alternating teams
+  if (state.minute > 0 && state.minute % 10 === 0 && state.minute <= 90) {
+    const team = (state.minute / 15) % 2 === 0 ? 'Chelsea' : 'Arsenal';
+    if (team === 'Arsenal') state.homeScore++; else state.awayScore++;
+
+    events.push({
+      id: `evt-${matchId}-${state.minute}`,
+      matchId,
+      minute: state.minute,
+      type: 'goal',
+      team,
+      detail: 'Mock goal event',
+    });
+  }
+
   return {
     matchId,
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
-    homeScore: minute > 30 ? 1 : 0,
-    awayScore: 0,
-    minute,
-    status: 'live',
-    events: minute > 30
-      ? [{ id: 'evt-1', matchId, minute: 31, type: 'goal', team: 'Arsenal', detail: 'Header from corner' }]
-      : [],
+    homeScore: state.homeScore,
+    awayScore: state.awayScore,
+    minute: Math.min(state.minute, 90),
+    status: state.minute >= 90 ? 'finished' : 'live',
+    events,
   };
 }
 
