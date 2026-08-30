@@ -19,7 +19,8 @@ The backend must be running separately (`cd ../match-second-screen-backend && np
 | `VITE_SUPABASE_URL`      | Supabase project URL (same project as the backend)   |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key                                    |
 | `VITE_WS_URL`            | Backend websocket origin, e.g. `ws://localhost:4000` |
-| `VITE_MATCH_ID`          | Match to render. Defaults to `test789`.              |
+| `VITE_API_URL`           | Backend REST origin. Defaults to `VITE_WS_URL` over http. |
+| `VITE_MATCH_ID`          | Unused fallback; the app now lists matches.          |
 
 With `USE_MOCK_SPORTS_DATA=false` on the backend, `VITE_MATCH_ID` must be a real
 API-Football **fixture id**, not an arbitrary string. Fixture ids change daily,
@@ -75,15 +76,67 @@ Files under `src/`:
 Styling is plain CSS Modules over the design tokens in `src/index.css`; there is
 no UI framework.
 
+## Screens
+
+Hash routing, so every screen has a shareable URL and no router dependency.
+
+| Route | Screen |
+| --- | --- |
+| `#/` | Live matches, filterable, with save toggles |
+| `#/match/:id` | Live match view — score, win probability, event feed, save/follow |
+| `#/saved` | Saved matches that are currently live (`saved_matches`) |
+| `#/following` | Manage followed teams (`followed_teams`) + their live matches |
+| `#/archive` | Finished matches (`match_archive`) |
+| `#/archive/:id` | Archived match with its full event log |
+| `#/profile` | Username (`profiles`) |
+
+## REST API
+
+All routes require `Authorization: Bearer <supabase access token>`.
+
+```
+GET    /matches/live              live fixtures (cached 60s server-side)
+GET    /matches/saved             the caller's saved match ids
+POST   /matches/:id/save          save        (idempotent)
+DELETE /matches/:id/save          unsave
+GET    /matches/archive           finished matches, newest first (?team= filter)
+GET    /matches/archive/:id       one archived match incl. event_log
+GET    /follows                   followed teams
+POST   /follows  {teamName}       follow      (idempotent)
+DELETE /follows/:teamName         unfollow
+GET    /profile                   profile row
+PATCH  /profile  {username}       rename (409 if taken)
+```
+
+`/matches/live` is cached in Redis for 60s: it is hit on every page load and
+each miss costs one upstream request against a 100/day quota.
+
 ## Known gaps
 
-- **No match selection.** `VITE_MATCH_ID` is a single hardcoded fixture. Real
-  fixture ids change every day, so this needs a picker (a `/fixtures?live=all`
-  proxy on the backend plus a list screen) before the app is usable by anyone
-  who is not editing `.env`.
+- **The `authenticated` role has no DML grant on any table.** RLS policies exist
+  ("users manage own …") but can never be reached, because the role lacks
+  SELECT/INSERT/UPDATE/DELETE — only `service_role` has them. The backend
+  therefore uses the service-role client and scopes every query by `user.id`
+  itself, which is safe only because the browser never queries Postgres
+  directly. To make the database the enforcing layer again, run:
+
+  ```sql
+  grant select, insert, update, delete
+    on public.profiles, public.followed_teams, public.saved_matches
+    to authenticated;
+  grant select on public.match_archive to authenticated, anon;
+  ```
+
+  then swap `requireAuth` in `httpAuth.ts` back to a per-request client carrying
+  the caller's JWT (the code and rationale are in the comment there).
+- **Followed teams are matched by exact name.** `followed_teams.team_name` is
+  free text, so "Man City" will not match the feed's "Manchester City". Storing
+  the API's numeric team id would fix it, but the column is text.
 - **Poll failures are invisible to the client.** If the backend gives up on a
   match (bad key, exhausted quota), it stops broadcasting; the UI keeps showing
   the last known state rather than saying the feed has stopped. Surfacing that
   needs a new websocket message type.
 - **Win probability assumes a 90-minute league match** with EPL-average scoring
   rates, so extra time and cup competitions are approximations.
+- **The archive only captures matches the server watched to full time.** Nobody
+  connected means nobody polling, so the match is never archived.

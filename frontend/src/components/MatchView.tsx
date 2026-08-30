@@ -1,4 +1,5 @@
 import { useMatchSocket } from '../hooks/useMatchSocket';
+import { href } from '../hooks/useRoute';
 import { EventFeed } from './EventFeed';
 import { Scoreboard } from './Scoreboard';
 import { WinProbabilityBar } from './WinProbabilityBar';
@@ -6,9 +7,19 @@ import styles from './MatchView.module.css';
 
 interface Props {
   matchId: string;
+  isSaved: boolean;
+  followedTeams: Set<string>;
+  onToggleSave: (matchId: string) => void;
+  onToggleFollow: (teamName: string) => void;
 }
 
-export function MatchView({ matchId }: Props) {
+export function MatchView({
+  matchId,
+  isSaved,
+  followedTeams,
+  onToggleSave,
+  onToggleFollow,
+}: Props) {
   const { status, error, state, winProb, events, freshEventIds } = useMatchSocket(matchId);
 
   // Before any state arrives there is no score to show, so the whole view is a
@@ -44,7 +55,35 @@ export function MatchView({ matchId }: Props) {
   }
 
   return (
-    <div className={styles.layout}>
+    <>
+      <div className={styles.actions}>
+        <a className={styles.back} href={href('/')}>
+          ← All matches
+        </a>
+        <div className={styles.actionButtons}>
+          {[state.homeTeam, state.awayTeam].map((team) => (
+            <button
+              key={team}
+              type="button"
+              className={followedTeams.has(team) ? styles.actionOn : styles.action}
+              onClick={() => onToggleFollow(team)}
+              aria-pressed={followedTeams.has(team)}
+            >
+              {followedTeams.has(team) ? '✓ Following' : 'Follow'} {team}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={isSaved ? styles.actionOn : styles.action}
+            onClick={() => onToggleSave(matchId)}
+            aria-pressed={isSaved}
+          >
+            {isSaved ? '★ Saved' : '☆ Save match'}
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.layout}>
       {status === 'connecting' && (
         <div className={`${styles.banner} ${styles.bannerSlot}`} role="status">
           <span className={styles.spinner} aria-hidden="true" />
@@ -76,6 +115,7 @@ export function MatchView({ matchId }: Props) {
       <div className={styles.feedSlot}>
         <EventFeed events={events} freshEventIds={freshEventIds} state={state} />
       </div>
-    </div>
+      </div>
+    </>
   );
 }

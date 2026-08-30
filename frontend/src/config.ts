@@ -2,6 +2,7 @@ interface Config {
   supabaseUrl: string;
   supabaseAnonKey: string;
   wsUrl: string;
+  apiUrl: string;
   matchId: string;
 }
 
@@ -25,5 +26,11 @@ export const config: Config = {
   supabaseAnonKey: clean(import.meta.env.VITE_SUPABASE_ANON_KEY),
   wsUrl: clean(import.meta.env.VITE_WS_URL, 'ws://localhost:4000').replace(/\/+$/, ''),
   // Match selection is out of scope for this pass — one hardcoded match.
+  // Defaults to the websocket origin over http, since they are the same server.
+  apiUrl: clean(
+    import.meta.env.VITE_API_URL,
+    clean(import.meta.env.VITE_WS_URL, 'ws://localhost:4000').replace(/^ws/, 'http')
+  ).replace(/\/+$/, ''),
+  // Fallback only: the app now lists matches instead of pinning one.
   matchId: clean(import.meta.env.VITE_MATCH_ID, 'test789'),
 };

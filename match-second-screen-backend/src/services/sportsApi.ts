@@ -11,6 +11,8 @@ export interface MatchEvent {
 
 export interface LiveMatchState {
   matchId: string;
+  /** Kickoff time (ISO), when the source provides one. */
+  kickoff?: string;
   homeTeam: string;
   awayTeam: string;
   homeScore: number;
@@ -68,6 +70,7 @@ async function fetchMockLiveMatch(matchId: string): Promise<LiveMatchState> {
 interface ApiFixture {
   fixture?: {
     id?: number;
+    date?: string;
     status?: { short?: string; elapsed?: number | null; extra?: number | null };
   };
   teams?: { home?: { name?: string }; away?: { name?: string } };
@@ -217,6 +220,7 @@ function mapFixture(matchId: string, fixture: ApiFixture): LiveMatchState {
 
   return {
     matchId,
+    kickoff: fixture.fixture?.date,
     homeTeam: fixture.teams?.home?.name ?? 'Home',
     awayTeam: fixture.teams?.away?.name ?? 'Away',
     homeScore: fixture.goals?.home ?? 0,
@@ -268,6 +272,76 @@ async function fetchRealLiveMatch(matchId: string): Promise<LiveMatchState> {
   }
 
   return mapFixture(matchId, fixture);
+}
+
+/** One row in the match-list screen. */
+export interface MatchSummary {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  minute: number;
+  status: LiveMatchState['status'];
+  league: string | null;
+  country: string | null;
+}
+
+interface ApiFixtureWithLeague extends ApiFixture {
+  league?: { name?: string; country?: string };
+}
+
+function toSummary(fixture: ApiFixtureWithLeague): MatchSummary {
+  return {
+    matchId: String(fixture.fixture?.id ?? ''),
+    homeTeam: fixture.teams?.home?.name ?? 'Home',
+    awayTeam: fixture.teams?.away?.name ?? 'Away',
+    homeScore: fixture.goals?.home ?? 0,
+    awayScore: fixture.goals?.away ?? 0,
+    minute:
+      (fixture.fixture?.status?.elapsed ?? 0) + (fixture.fixture?.status?.extra ?? 0),
+    status: mapStatus(fixture.fixture?.status?.short),
+    league: fixture.league?.name ?? null,
+    country: fixture.league?.country ?? null,
+  };
+}
+
+async function fetchMockLiveFixtures(): Promise<MatchSummary[]> {
+  return ['test789', 'test123'].map((matchId, i) => ({
+    matchId,
+    homeTeam: 'Arsenal',
+    awayTeam: 'Chelsea',
+    homeScore: i,
+    awayScore: 0,
+    minute: 10 + i * 20,
+    status: 'live' as const,
+    league: 'Mock League',
+    country: 'Mockland',
+  }));
+}
+
+async function fetchRealLiveFixtures(): Promise<MatchSummary[]> {
+  const res = await fetch(apiUrl('fixtures?live=all'), { headers: apiHeaders() });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`API-Football live fixtures request failed: ${res.status} ${body.slice(0, 200)}`);
+  }
+
+  const data = (await res.json()) as ApiFixturesResponse;
+  const errors = data.errors;
+  const hasErrors = Array.isArray(errors)
+    ? errors.length > 0
+    : Boolean(errors) && Object.keys(errors as object).length > 0;
+  if (hasErrors) {
+    throw new Error(`API-Football returned errors: ${JSON.stringify(errors)}`);
+  }
+
+  return (data.response ?? []).map(toSummary).filter((m) => m.matchId);
+}
+
+export async function fetchLiveFixtures(): Promise<MatchSummary[]> {
+  return config.useMockSportsData ? fetchMockLiveFixtures() : fetchRealLiveFixtures();
 }
 
 export async function fetchLiveMatch(matchId: string): Promise<LiveMatchState> {

@@ -46,3 +46,34 @@ export interface UpdateMessage {
 }
 
 export type ServerMessage = ConnectedMessage | UpdateMessage;
+
+export interface MatchSummary {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  minute: number;
+  status: MatchStatus;
+  league: string | null;
+  country: string | null;
+}
+
+export interface Profile {
+  id: string;
+  username: string | null;
+  created_at: string;
+}
+
+export interface ArchivedMatchRow {
+  match_id: string;
+  home_team: string;
+  away_team: string;
+  final_score: string;
+  summary: string | null;
+  played_at: string;
+}
+
+export interface ArchivedMatch extends ArchivedMatchRow {
+  event_log: MatchEvent[];
+}

@@ -101,3 +101,55 @@
     align-items: start;
   }
 }
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.back {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--home);
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action:hover {
+  background: var(--draw-soft);
+  color: var(--text);
+}
+
+.actionOn {
+  composes: action;
+  border-color: var(--home);
+  background: var(--home-soft);
+  color: var(--home);
+}

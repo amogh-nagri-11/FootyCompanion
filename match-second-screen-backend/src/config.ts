@@ -30,6 +30,11 @@ export const config = {
   // How long a match's seen-events set outlives the last poll. Refreshed on
   // every poll, so this only has to cover the gap between a match going quiet
   // and the set becoming safe to drop — not the length of a match.
+  // Comma-separated list of browser origins allowed to call the REST routes.
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
   seenEventsTtlSeconds: positiveInt('SEEN_EVENTS_TTL_SECONDS', 7200),
   // API-Football refreshes fixture data every 15s, so polling faster buys
   // nothing and burns quota: one match at 15s is ~240 requests/hour, already

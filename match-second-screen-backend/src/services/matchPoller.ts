@@ -2,6 +2,7 @@ import { redis } from '../redis.js';
 import { config } from '../config.js';
 import { fetchLiveMatch, MatchEvent, LiveMatchState } from './sportsApi.js';
 import { calculateWinProbability } from './winProbability.js';
+import { archiveMatch } from './archive.js';
 
 type WinProb = ReturnType<typeof calculateWinProbability>;
 
@@ -11,6 +12,10 @@ const activePolls = new Map<string, NodeJS.Timeout>();
 const consecutiveFailures = new Map<string, number>();
 const lastBroadcast = new Map<string, string>();
 const lastKnownState = new Map<string, { state: LiveMatchState; winProb: WinProb }>();
+// Every event seen this polling session. The real API returns the full list on
+// each poll, but the mock returns only what just happened — accumulating here
+// means history and the archive are correct for either source.
+const accumulatedEvents = new Map<string, MatchEvent[]>();
 
 /**
  * The most recent state seen for a match, used to bring a client that joins
@@ -47,6 +52,11 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
 
   const newEvents = state.events.filter((e) => !seenSet.has(e.id));
 
+  const prior = accumulatedEvents.get(matchId) ?? [];
+  const priorIds = new Set(prior.map((e) => e.id));
+  const history = [...prior, ...state.events.filter((e) => !priorIds.has(e.id))];
+  accumulatedEvents.set(matchId, history);
+
   if (newEvents.length > 0) {
     await redis.sadd(seenKey, ...newEvents.map((e) => e.id));
   }
@@ -59,7 +69,7 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   // never reaches clients as "finished".
   const signature = `${state.minute}|${state.homeScore}-${state.awayScore}|${state.status}`;
   const winProb = calculateWinProbability(state);
-  lastKnownState.set(matchId, { state, winProb });
+  lastKnownState.set(matchId, { state: { ...state, events: history }, winProb });
 
   // The very first broadcast of a polling session carries the whole event
   // list, not just the delta. Redis remembers events across restarts, so a
@@ -68,7 +78,7 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   const isFirstBroadcast = !lastBroadcast.has(matchId);
   if (newEvents.length > 0 || isFirstBroadcast || lastBroadcast.get(matchId) !== signature) {
     lastBroadcast.set(matchId, signature);
-    onNewEvents(matchId, isFirstBroadcast ? state.events : newEvents, state, winProb);
+    onNewEvents(matchId, isFirstBroadcast ? history : newEvents, state, winProb);
   }
 
   // Slide the expiry forward on every poll rather than only when events are
@@ -78,6 +88,9 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   await redis.expire(seenKey, config.seenEventsTtlSeconds);
 
   if (state.status === 'finished') {
+    // Persist before tearing down the poll — this is the last time we hold the
+    // full event list for this match.
+    await archiveMatch({ ...state, events: history });
     stopPolling(matchId);
   }
 
@@ -111,4 +124,5 @@ export function stopPolling(matchId: string) {
   consecutiveFailures.delete(matchId);
   lastBroadcast.delete(matchId);
   lastKnownState.delete(matchId);
+  accumulatedEvents.delete(matchId);
 }
