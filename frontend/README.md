@@ -90,6 +90,51 @@ Hash routing, so every screen has a shareable URL and no router dependency.
 | `#/archive/:id` | Archived match with its full event log |
 | `#/profile` | Username (`profiles`) |
 
+## Live FPL point tracking
+
+If you link your Fantasy Premier League team, the match view shows your squad's
+live points alongside the feed, and calls out your own players the moment they
+are involved.
+
+Two-stage by design:
+
+1. **Instant alert.** When the match poller sees a goal/assist/card, the player
+   name is resolved against FPL's player list *locally* (cached data, no network
+   call) and, if they are in your squad, an `fpl_alert` goes out immediately —
+   "João Pedro scored". It shows "confirming…" because no point value is claimed
+   yet.
+2. **Confirmed points.** Moments later an `fpl_update` carries the numbers from
+   FPL's own `/event/{gw}/live/` endpoint. **No scoring rule is reimplemented** —
+   point values are FPL's, multiplied by FPL's own captain/bench multiplier — so
+   totals cannot drift from what the FPL app shows.
+
+Both ride the existing per-match websocket; there is no second connection.
+
+### Name matching
+
+Match feeds and FPL name players differently ("B. Saka" vs "Bukayo Saka" vs
+"Saka"), so `services/fpl/names.ts` walks a ladder from exact full name down
+through web name, surname, initial+surname, token subset, and finally a bounded
+edit distance for transliteration differences ("Yarmolyuk" vs "Yarmoliuk").
+
+Two rules keep it honest: candidates are scoped to the two clubs actually in the
+match, and **an ambiguous name resolves to nothing rather than a guess** —
+crediting a goal to the wrong player is worse than not crediting it. Measured at
+66/66 on real Premier League event names.
+
+### Rate-limit discipline
+
+FPL endpoints are unauthenticated but rate-limited, so nothing is fetched
+per-user. All three are read through Redis and fanned out:
+
+| Data | Cache | Why |
+| --- | --- | --- |
+| `bootstrap-static` | 6h | ~1MB master list, changes at most daily |
+| `event/{gw}/live` | 45s | shared by every subscriber |
+| `entry/{id}/event/{gw}/picks` | 15m | frozen once the deadline passes |
+
+Non-Premier-League matches short-circuit before any FPL call is made.
+
 ## REST API
 
 All routes require `Authorization: Bearer <supabase access token>`.
@@ -106,10 +151,25 @@ POST   /follows  {teamName}       follow      (idempotent)
 DELETE /follows/:teamName         unfollow
 GET    /profile                   profile row
 PATCH  /profile  {username}       rename (409 if taken)
+GET    /fpl/team                  linked FPL entry id
+PUT    /fpl/team {teamId}         link (validated against FPL, 404 if no such entry)
+DELETE /fpl/team                  unlink
+GET    /fpl/squad                 current squad with live points
 ```
 
 `/matches/live` is cached in Redis for 60s: it is hit on every page load and
 each miss costs one upstream request against a 100/day quota.
+
+## Migration required
+
+The FPL feature stores one column that is not yet in the database:
+
+```sql
+alter table public.profiles add column if not exists fpl_team_id integer;
+```
+
+Until it is applied the app runs normally and simply reports no linked team —
+the backend logs the statement above once on first use.
 
 ## Known gaps
 
@@ -140,3 +200,10 @@ each miss costs one upstream request against a 100/day quota.
   rates, so extra time and cup competitions are approximations.
 - **The archive only captures matches the server watched to full time.** Nobody
   connected means nobody polling, so the match is never archived.
+- **FPL points refresh only while watching a Premier League match.** Updates are
+  pushed on that match's poll cycle, so a squad player scoring in a *different*
+  fixture is not reflected until you open that match. A global gameweek poller
+  would fix it.
+- **Bonus points move after the whistle.** FPL awards them provisionally during
+  a match and finalises them afterwards, so a total can change once more after
+  full time. That is FPL's behaviour, faithfully reflected.

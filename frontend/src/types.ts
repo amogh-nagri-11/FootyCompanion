@@ -7,6 +7,8 @@ export interface MatchEvent {
   type: MatchEventType;
   team: string;
   detail: string;
+  playerName?: string | null;
+  assistName?: string | null;
 }
 
 export type MatchStatus = 'live' | 'finished' | 'not_started';
@@ -32,6 +34,8 @@ export interface WinProb {
 export interface ConnectedMessage {
   type: 'connected';
   matchId: string;
+  /** Whether this user has an FPL team linked, so the UI can prompt. */
+  fplLinked?: boolean;
 }
 
 /**
@@ -45,7 +49,11 @@ export interface UpdateMessage {
   winProb: WinProb;
 }
 
-export type ServerMessage = ConnectedMessage | UpdateMessage;
+export type ServerMessage =
+  | ConnectedMessage
+  | UpdateMessage
+  | FplUpdateMessage
+  | FplAlertMessage;
 
 export interface MatchSummary {
   matchId: string;
@@ -76,4 +84,54 @@ export interface ArchivedMatchRow {
 
 export interface ArchivedMatch extends ArchivedMatchRow {
   event_log: MatchEvent[];
+}
+
+export interface SquadPlayer {
+  fplId: number;
+  name: string;
+  team: string;
+  position: string;
+  /** FPL's own points for this player, before the multiplier. */
+  points: number;
+  multiplier: number;
+  effectivePoints: number;
+  isCaptain: boolean;
+  isViceCaptain: boolean;
+  isBench: boolean;
+  minutes: number;
+  goals: number;
+  assists: number;
+}
+
+export interface SquadView {
+  entryId: number;
+  gameweek: number;
+  totalPoints: number;
+  benchPoints: number;
+  activeChip: string | null;
+  players: SquadPlayer[];
+}
+
+/** Reconciled squad totals, straight from FPL's live endpoint. */
+export interface FplUpdateMessage extends SquadView {
+  type: 'fpl_update';
+  matchId: string;
+}
+
+/** Fired the moment the match feed sees one of your players involved. */
+export interface FplAlertMessage {
+  type: 'fpl_alert';
+  matchId: string;
+  gameweek: number;
+  role: 'scorer' | 'assist';
+  player: { fplId: number; name: string };
+  isCaptain: boolean;
+  onBench: boolean;
+  multiplier: number;
+  event: { minute: number; type: MatchEventType; detail: string };
+}
+
+export interface FplAlert extends FplAlertMessage {
+  /** Client-side id, since the same player can feature more than once. */
+  key: string;
 }

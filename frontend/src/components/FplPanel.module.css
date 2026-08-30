@@ -1,0 +1,206 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gw {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.total {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.chip {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--home);
+  background: var(--home-soft);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* Alerts — the instant "your player scored" band, before FPL confirms points. */
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alert {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--home-soft);
+  border-bottom: 1px solid #d7e2fa;
+  font-size: 13px;
+  animation: alertIn 400ms ease-out;
+}
+
+.alert:last-child {
+  border-bottom: 0;
+}
+
+@keyframes alertIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.alertMinute {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--home);
+  flex: none;
+}
+
+.alertText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alertName {
+  font-weight: 700;
+}
+
+.pending {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.player {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.player:last-child {
+  border-bottom: 0;
+}
+
+.benched {
+  composes: player;
+  opacity: 0.55;
+}
+
+.pos {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--home);
+  background: var(--home-soft);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.club {
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-left: 5px;
+}
+
+.pts {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scored {
+  color: var(--live);
+}
+
+.footer {
+  padding: 10px 18px;
+  font-size: 11px;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border);
+}
+
+.empty {
+  padding: 22px 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.link {
+  color: var(--home);
+  font-weight: 600;
+}

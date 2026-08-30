@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { config } from '../config';
-import type { MatchEvent, MatchState, ServerMessage, WinProb } from '../types';
+import type {
+  FplAlert,
+  MatchEvent,
+  MatchState,
+  ServerMessage,
+  SquadView,
+  WinProb,
+} from '../types';
 
 /**
  * connecting  — opening the socket / fetching the access token
@@ -16,6 +23,9 @@ export type ConnectionStatus = 'connecting' | 'waiting' | 'live' | 'ended' | 'er
 
 /** How long a freshly-arrived event keeps its highlight. */
 const HIGHLIGHT_MS = 4000;
+/** How long an FPL alert stays on screen before fading out of the list. */
+const ALERT_MS = 30000;
+const MAX_ALERTS = 4;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 interface MatchData {
@@ -25,6 +35,10 @@ interface MatchData {
   winProb: WinProb | null;
   events: MatchEvent[];
   freshEventIds: Set<string>;
+  /** Null until the user links an FPL team, or if this is not a PL fixture. */
+  squad: SquadView | null;
+  fplLinked: boolean;
+  fplAlerts: FplAlert[];
 }
 
 const INITIAL: MatchData = {
@@ -34,6 +48,9 @@ const INITIAL: MatchData = {
   winProb: null,
   events: [],
   freshEventIds: new Set(),
+  squad: null,
+  fplLinked: false,
+  fplAlerts: [],
 };
 
 export function useMatchSocket(matchId: string): MatchData {
@@ -88,7 +105,34 @@ export function useMatchSocket(matchId: string): MatchData {
           // A reconnect that already has state should go straight back to live.
           status: prev.state ? 'live' : 'waiting',
           error: null,
+          fplLinked: msg.fplLinked ?? prev.fplLinked,
         }));
+        return;
+      }
+
+      if (msg.type === 'fpl_update') {
+        const { type: _t, matchId: _m, ...squad } = msg;
+        setData((prev) => ({ ...prev, squad, fplLinked: true }));
+        return;
+      }
+
+      if (msg.type === 'fpl_alert') {
+        // The same player can feature twice in one match, so key on the event
+        // rather than the player.
+        const key = `${msg.player.fplId}-${msg.event.minute}-${msg.role}`;
+        setData((prev) =>
+          prev.fplAlerts.some((a) => a.key === key)
+            ? prev
+            : { ...prev, fplAlerts: [{ ...msg, key }, ...prev.fplAlerts].slice(0, MAX_ALERTS) }
+        );
+
+        const timer = setTimeout(() => {
+          setData((prev) => ({
+            ...prev,
+            fplAlerts: prev.fplAlerts.filter((a) => a.key !== key),
+          }));
+        }, ALERT_MS);
+        highlightTimersRef.current.push(timer);
         return;
       }
 

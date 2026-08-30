@@ -72,11 +72,21 @@
 .boardSlot {
   grid-area: board;
 }
-.probSlot {
-  grid-area: prob;
-}
 .feedSlot {
   grid-area: feed;
+}
+
+.sideSlot {
+  grid-area: side;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+@media (min-width: 860px) {
+  .sideSlot {
+    gap: 16px;
+  }
 }
 
 /* Mobile: one column, in reading order — score, probability, then the feed. */
@@ -84,7 +94,7 @@
   grid-template-areas:
     'banner'
     'board'
-    'prob'
+    'side'
     'feed';
 }
 
@@ -96,7 +106,7 @@
     grid-template-areas:
       'banner banner'
       'board  board'
-      'feed   prob';
+      'feed   side';
     gap: 16px;
     align-items: start;
   }

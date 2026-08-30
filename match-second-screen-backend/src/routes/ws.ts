@@ -1,7 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { verifyToken } from '../auth.js';
-import { subscribe, unsubscribe, broadcast, hasSubscribers } from '../services/connectionRegistry.js';
+import {
+  subscribe,
+  unsubscribe,
+  broadcast,
+  hasSubscribers,
+  send,
+} from '../services/connectionRegistry.js';
 import { startPolling, stopPolling, getLastKnownState } from '../services/matchPoller.js';
+import { supabaseAdmin } from '../supabase.js';
+import { getFplTeamId } from '../services/fpl/store.js';
+import { onMatchUpdate, pushSquadUpdate } from '../services/fpl/liveBridge.js';
 
 export async function wsRoutes(app: FastifyInstance) {
   app.get('/ws/match/:matchId', { websocket: true }, async (connection, req) => {
@@ -23,32 +32,42 @@ export async function wsRoutes(app: FastifyInstance) {
     const { matchId } = req.params as { matchId: string };
     app.log.info(`User ${user.id} connected to match ${matchId}`);
 
-    subscribe(matchId, connection);
+    // Read once at connect: picks are per-user, but the FPL endpoints behind
+    // them are fetched once and shared, so this costs nothing per subscriber.
+    let fplTeamId: number | null = null;
+    try {
+      fplTeamId = await getFplTeamId(supabaseAdmin, user.id);
+    } catch (err) {
+      app.log.warn(`Could not read FPL team for ${user.id}: ${(err as Error).message}`);
+    }
 
-    // start polling this match if it isn't already being tracked
+    const subscriber = subscribe(matchId, connection, user.id, fplTeamId);
+
     startPolling(matchId, (id, newEvents, state, winProb) => {
       broadcast(id, { type: 'update', events: newEvents, state, winProb });
+      void onMatchUpdate(id, newEvents, state);
     });
 
-    connection.send(JSON.stringify({ type: 'connected', matchId }));
+    send(subscriber, { type: 'connected', matchId, fplLinked: fplTeamId !== null });
 
     // Bring a client joining an already-tracked match up to date immediately,
     // rather than leaving it on "waiting for match data" until the next event.
     const known = getLastKnownState(matchId);
     if (known) {
-      connection.send(
-        JSON.stringify({
-          type: 'update',
-          events: known.state.events,
-          state: known.state,
-          winProb: known.winProb,
-        })
-      );
+      send(subscriber, {
+        type: 'update',
+        events: known.state.events,
+        state: known.state,
+        winProb: known.winProb,
+      });
     }
+
+    // Populate the FPL panel on connect so it is not blank until a goal.
+    void pushSquadUpdate(subscriber, matchId);
 
     connection.on('close', () => {
       app.log.info(`User ${user.id} disconnected from match ${matchId}`);
-      unsubscribe(matchId, connection);
+      unsubscribe(matchId, subscriber);
 
       if (!hasSubscribers(matchId)) {
         app.log.info(`No subscribers left for ${matchId}, stopping poll`);

@@ -7,6 +7,12 @@ export interface MatchEvent {
   type: 'goal' | 'card' | 'substitution' | 'other';
   team: string;
   detail: string;
+  /**
+   * Raw participant names, kept alongside the rendered `detail` sentence so
+   * consumers (FPL matching) never have to parse names back out of prose.
+   */
+  playerName?: string | null;
+  assistName?: string | null;
 }
 
 export interface LiveMatchState {
@@ -216,6 +222,8 @@ function mapFixture(matchId: string, fixture: ApiFixture): LiveMatchState {
     // Must match homeTeam/awayTeam exactly — the client colours events by name.
     team: event.team?.name ?? 'Unknown',
     detail: describeEvent(event),
+    playerName: event.player?.name?.trim() || null,
+    assistName: event.assist?.name?.trim() || null,
   }));
 
   return {
