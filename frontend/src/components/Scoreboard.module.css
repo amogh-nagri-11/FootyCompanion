@@ -1,0 +1,123 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 18px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.dotIdle {
+  composes: dot;
+  background: var(--text-faint);
+  animation: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.live {
+  color: var(--live);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.team {
+  min-width: 0;
+}
+
+.teamName {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.home {
+  text-align: right;
+}
+
+.away {
+  text-align: left;
+}
+
+.teamLabel {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.homeLabel {
+  composes: teamLabel;
+  color: var(--home);
+}
+
+.awayLabel {
+  composes: teamLabel;
+  color: var(--away);
+}
+
+.score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.separator {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+@media (min-width: 560px) {
+  .card {
+    padding: 26px 24px;
+  }
+
+  .score {
+    font-size: 52px;
+    gap: 12px;
+  }
+
+  .teamName {
+    font-size: 18px;
+  }
+}

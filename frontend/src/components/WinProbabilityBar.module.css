@@ -1,0 +1,106 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.heading {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.bar {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--draw-soft);
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  /* Width is the whole point of this component — animate only that. */
+  transition: width 400ms ease;
+}
+
+.homeSeg {
+  composes: segment;
+  background: var(--home);
+}
+
+.drawSeg {
+  composes: segment;
+  background: var(--draw);
+}
+
+.awaySeg {
+  composes: segment;
+  background: var(--away);
+}
+
+.legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.legendItem:last-child {
+  justify-content: flex-end;
+}
+
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.homeSwatch {
+  composes: swatch;
+  background: var(--home);
+}
+
+.drawSwatch {
+  composes: swatch;
+  background: var(--draw);
+}
+
+.awaySwatch {
+  composes: swatch;
+  background: var(--away);
+}
+
+.legendLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendValue {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}

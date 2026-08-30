@@ -12,14 +12,17 @@
   "description": "",
   "type": "module",
   "dependencies": {
+    "@fastify/cors": "^11.3.0",
     "@fastify/websocket": "^11.3.0",
     "@supabase/supabase-js": "^2.109.0",
+    "@types/ws": "^8.18.1",
     "dotenv": "^17.4.2",
     "fastify": "^5.12.1",
     "ioredis": "^6.0.0",
     "jose": "^6.2.10",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
