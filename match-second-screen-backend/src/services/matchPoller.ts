@@ -3,15 +3,28 @@ import { config } from '../config.js';
 import { fetchLiveMatch, MatchEvent, LiveMatchState } from './sportsApi.js';
 import { calculateWinProbability } from './winProbability.js';
 import { archiveMatch } from './archive.js';
+import { calculateMomentum, Momentum } from './momentum.js';
+import { recordWinProb, getWinProbSeries, clearWinProbSeries } from './winProbSeries.js';
+import { findTurningPoint } from './turningPoint.js';
+import { generateMatchSummary } from './matchSummary.js';
 
 type WinProb = ReturnType<typeof calculateWinProbability>;
 
-type EventCallback = (matchId: string, newEvents: MatchEvent[], state: LiveMatchState, winProb: WinProb) => void;
+type EventCallback = (
+  matchId: string,
+  newEvents: MatchEvent[],
+  state: LiveMatchState,
+  winProb: WinProb,
+  momentum: Momentum
+) => void;
 
 const activePolls = new Map<string, NodeJS.Timeout>();
 const consecutiveFailures = new Map<string, number>();
 const lastBroadcast = new Map<string, string>();
-const lastKnownState = new Map<string, { state: LiveMatchState; winProb: WinProb }>();
+const lastKnownState = new Map<
+  string,
+  { state: LiveMatchState; winProb: WinProb; momentum: Momentum }
+>();
 // Every event seen this polling session. The real API returns the full list on
 // each poll, but the mock returns only what just happened — accumulating here
 // means history and the archive are correct for either source.
@@ -69,7 +82,26 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   // never reaches clients as "finished".
   const signature = `${state.minute}|${state.homeScore}-${state.awayScore}|${state.status}`;
   const winProb = calculateWinProbability(state);
-  lastKnownState.set(matchId, { state: { ...state, events: history }, winProb });
+
+  // Momentum is derived from events we already hold — no extra API call.
+  const momentum = calculateMomentum(history, state.minute, state.homeTeam, state.awayTeam);
+
+  // Record the probability alongside the match clock. Stored every poll rather
+  // than only on new events, because the turning point is found by comparing
+  // consecutive minutes and gaps in the series would hide swings.
+  await recordWinProb(matchId, state.minute, winProb);
+
+  // Cached per match under the same key prefix and TTL discipline as the
+  // seen-events set, so a restarted server or a late joiner can be served the
+  // last known momentum without waiting for the next event.
+  await redis.set(
+    `match:${matchId}:momentum`,
+    JSON.stringify(momentum),
+    'EX',
+    config.seenEventsTtlSeconds
+  );
+
+  lastKnownState.set(matchId, { state: { ...state, events: history }, winProb, momentum });
 
   // The very first broadcast of a polling session carries the whole event
   // list, not just the delta. Redis remembers events across restarts, so a
@@ -78,7 +110,7 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   const isFirstBroadcast = !lastBroadcast.has(matchId);
   if (newEvents.length > 0 || isFirstBroadcast || lastBroadcast.get(matchId) !== signature) {
     lastBroadcast.set(matchId, signature);
-    onNewEvents(matchId, isFirstBroadcast ? history : newEvents, state, winProb);
+    onNewEvents(matchId, isFirstBroadcast ? history : newEvents, state, winProb, momentum);
   }
 
   // Slide the expiry forward on every poll rather than only when events are
@@ -90,11 +122,42 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   if (state.status === 'finished') {
     // Persist before tearing down the poll — this is the last time we hold the
     // full event list for this match.
-    await archiveMatch({ ...state, events: history });
+    await finaliseMatch(matchId, state, history);
     stopPolling(matchId);
   }
 
   return state;
+}
+
+/**
+ * End-of-match work: locate the turning point in the stored probability series,
+ * have it narrated, and archive the result.
+ *
+ * The turning point is computed here, deterministically, and handed to the
+ * summariser — the model is never asked to work out which moment mattered.
+ */
+async function finaliseMatch(
+  matchId: string,
+  state: LiveMatchState,
+  history: MatchEvent[]
+): Promise<void> {
+  try {
+    const series = await getWinProbSeries(matchId);
+    const turningPoint = findTurningPoint(series, history);
+    const { summary, generated } = await generateMatchSummary(state, history, turningPoint);
+
+    await archiveMatch({ ...state, events: history }, history, summary, turningPoint);
+
+    if (!generated) {
+      console.log(`Used templated summary for ${matchId} (no LLM provider or call failed).`);
+    }
+    await clearWinProbSeries(matchId);
+  } catch (err) {
+    console.error(
+      `Failed to finalise ${matchId}:`,
+      err instanceof Error ? err.message : err
+    );
+  }
 }
 
 export function startPolling(

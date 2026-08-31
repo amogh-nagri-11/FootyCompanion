@@ -88,7 +88,7 @@ Hash routing, so every screen has a shareable URL and no router dependency.
 | `#/following` | Manage followed teams (`followed_teams`) + their live matches |
 | `#/archive` | Finished matches (`match_archive`) |
 | `#/archive/:id` | Archived match with its full event log |
-| `#/profile` | Username (`profiles`) |
+| `#/profile` | Profile, security and account settings |
 
 ## Live FPL point tracking
 
@@ -135,6 +135,78 @@ per-user. All three are read through Redis and fanned out:
 
 Non-Premier-League matches short-circuit before any FPL call is made.
 
+## Momentum
+
+Alongside `state` and `winProb`, every `update` message carries a `momentum`
+field — who is dominating *play*, judged by recent event density rather than the
+scoreline:
+
+```json
+{ "type": "update", "state": {...}, "winProb": {...},
+  "momentum": { "home": 15, "away": 85,
+                "raw": { "home": 0.6, "away": 3.6 },
+                "eventCount": 2, "windowMinutes": 12 } }
+```
+
+`home` and `away` are a 0-100 split that always sums to 100. Events inside a
+trailing 12-minute window are weighted by type (goal 4, card 1.5, substitution 1
+— **heuristic starting values, not fitted to data**) and decayed exponentially
+with a 4-minute half-life, so a goal two minutes ago outweighs one from ten.
+
+Goals and substitutions credit the team that made them. **Cards credit the
+opposition**: players get booked when they are under pressure — fouling to stop
+a counter, chasing the game — so a run of bookings against one side is evidence
+the *other* side is on top, and a red card makes that literal. Crediting a card
+to the booked team would read a side being overrun as a side with momentum.
+Three bookings against the away team plus one home goal reads `home: 100`, not
+`home: 51`.
+
+The point is that it diverges from the score. Observed live: at 60 minutes with
+the home side leading 4–2, momentum read `away: 85`, because the away team had
+just scored and the home goals were old.
+
+Computed from events the poller already holds — no extra API call. Shots on
+target would be a better signal but live on a separate statistics endpoint, and
+spending a second request per poll against a 100/day quota was not worth it.
+
+## Post-match summaries
+
+When a match finishes, the server writes a narrative summary built around the
+match's actual turning point.
+
+**The turning point is computed, not asked for.** Win probability is sampled once
+per match minute into a Redis list (`match:{id}:winprob_series`, same prefix and
+TTL as `seen_events`), and at full time the largest swing in home win probability
+across any window of up to 5 match minutes is found arithmetically. Asking a
+language model to identify the turning point would invite a plausible-sounding
+but unfounded answer; the numbers already know. The model is handed the moment
+and asked only to narrate it.
+
+A match whose probability never swings more than 8 points has **no** turning
+point, and the code says so rather than manufacturing one.
+
+The series lives in Redis while the match is live and is copied into Postgres at
+full time, matching the existing split; the Redis key is dropped once archived.
+
+### Summary provider
+
+| Variable | Purpose |
+| --- | --- |
+| `LLM_PROVIDER` | `groq`, `gemini`, or unset for none |
+| `GROQ_API_KEY` / `GEMINI_API_KEY` | key for the chosen provider |
+| `LLM_MODEL` | optional override (defaults: `llama-3.3-70b-versatile`, `gemini-2.0-flash`) |
+| `LLM_TIMEOUT_MS` | request timeout, default 20000 |
+
+Both are called over plain `fetch` — no SDK dependency, matching how the project
+already calls API-Football. With no provider configured, or if the call fails or
+times out, the archive falls back to a templated sentence that still names the
+turning point:
+
+> Arsenal beat Chelsea 6–3. The match turned in the 10th minute — Mock goal
+> event — swinging it 27 points toward Arsenal.
+
+A summary is a nice touch on an archived match, never a reason to lose the row.
+
 ## REST API
 
 All routes require `Authorization: Bearer <supabase access token>`.
@@ -149,8 +221,12 @@ GET    /matches/archive/:id       one archived match incl. event_log
 GET    /follows                   followed teams
 POST   /follows  {teamName}       follow      (idempotent)
 DELETE /follows/:teamName         unfollow
-GET    /profile                   profile row
-PATCH  /profile  {username}       rename (409 if taken)
+GET    /profile                   profile, email, follow/save counts
+PATCH  /profile  {username, displayName, bio, avatarUrl, favouriteTeam}
+                                  update fields (409 if username taken; returns
+                                  `skipped` for anything the schema lacks)
+DELETE /profile  {confirm}        delete account; `confirm` must equal the
+                                  account's own email address
 GET    /fpl/team                  linked FPL entry id
 PUT    /fpl/team {teamId}         link (validated against FPL, 404 if no such entry)
 DELETE /fpl/team                  unlink
@@ -160,16 +236,43 @@ GET    /fpl/squad                 current squad with live points
 `/matches/live` is cached in Redis for 60s: it is hit on every page load and
 each miss costs one upstream request against a 100/day quota.
 
-## Migration required
+## Migrations
 
-The FPL feature stores one column that is not yet in the database:
+SQL lives in `db/migrations/`, applied by hand against the Supabase project
+(SQL Editor, or psql with `DATABASE_URL`). Every statement is idempotent.
 
-```sql
-alter table public.profiles add column if not exists fpl_team_id integer;
-```
+| File | What it does | Status |
+| --- | --- | --- |
+| `001_profile_fields.sql` | FPL team id, display name, bio, avatar, favourite club, case-insensitive username uniqueness | **not yet applied** |
+| `002_authenticated_grants.sql` | Optional: grants that make RLS the enforcing layer again | not applied |
+| `003_match_turning_point.sql` | `match_archive.turning_point` jsonb + an index for sorting by most dramatic match | **not yet applied** |
 
-Until it is applied the app runs normally and simply reports no linked team —
-the backend logs the statement above once on first use.
+Until `001` runs the app degrades rather than breaking: the profile screen shows
+a migration banner, extended fields report which values could not be stored, and
+FPL linking reports no team. Username, follows, saves and the archive all work.
+
+## Profile
+
+`#/profile` covers the standard account surface:
+
+- **Identity** — avatar (an image URL, or generated initials), display name,
+  unique `@username`, bio, favourite club, member-since, and counts of teams
+  followed and matches saved.
+- **Security** — change password and change email. A password change
+  re-authenticates with the current password first: an open session alone is
+  enough for Supabase to accept the change, which would let anyone with a
+  borrowed tab lock the owner out.
+- **Danger zone** — sign out on all devices (`scope: 'global'`, so other
+  browsers are revoked too), and delete account, gated behind typing the
+  account's own email address. Deleting the auth user cascades through
+  `profiles` to `followed_teams` and `saved_matches`.
+
+Password and email changes go through supabase-js directly; deletion needs the
+service-role key and so runs server-side.
+
+Avatars are URLs rather than uploads — no storage bucket to provision, and a URL
+that fails to load falls back to initials. Only `http(s)` URLs are accepted, so
+a `data:` or `javascript:` URL cannot reach an `img src`.
 
 ## Known gaps
 
@@ -199,11 +302,21 @@ the backend logs the statement above once on first use.
 - **Win probability assumes a 90-minute league match** with EPL-average scoring
   rates, so extra time and cup competitions are approximations.
 - **The archive only captures matches the server watched to full time.** Nobody
-  connected means nobody polling, so the match is never archived.
+  connected means nobody polling, so the match is never archived — and the
+  win-probability series only covers the minutes somebody was watching, so a
+  turning point in an unwatched first half cannot be found.
+- **Momentum is not persisted.** It is derived from the event log and recomputed
+  each poll (the latest value is cached at `match:{id}:momentum` for late
+  joiners), so archived matches carry no momentum history.
+- **Card attribution is a rule with exceptions.** Cards credit the opposition,
+  which is right for the common case (fouling under pressure) but wrong for
+  dissent, time-wasting while protecting a lead, and celebration bookings.
 - **FPL points refresh only while watching a Premier League match.** Updates are
   pushed on that match's poll cycle, so a squad player scoring in a *different*
   fixture is not reflected until you open that match. A global gameweek poller
   would fix it.
+- **Avatars are remote URLs, not uploads.** No image is hosted by the app, so a
+  URL that later 404s silently reverts the user to initials.
 - **Bonus points move after the whistle.** FPL awards them provisionally during
   a match and finalises them afterwards, so a total can change once more after
   full time. That is FPL's behaviour, faithfully reflected.
