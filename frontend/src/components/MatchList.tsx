@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
-import type { MatchSummary } from '../types';
+import type { FixtureKind, MatchSummary } from '../types';
 import { majorLeagueRank, TIER_LABELS, type Tier } from '../lib/leagues';
 import { TeamCrest } from './TeamCrest';
 import { MatchListSkeleton } from './Skeleton';
@@ -14,6 +14,8 @@ interface Props {
   onlyMatchIds?: Set<string>;
   onlyTeams?: Set<string>;
   title: string;
+  /** Heading to use when nothing is in play and the list is showing kickoffs. */
+  upcomingTitle?: string;
   emptyMessage: string;
   savedIds: Set<string>;
   onToggleSave: (matchId: string) => void;
@@ -25,6 +27,7 @@ export function MatchList({
   onlyMatchIds,
   onlyTeams,
   title,
+  upcomingTitle,
   emptyMessage,
   savedIds,
   onToggleSave,
@@ -32,9 +35,16 @@ export function MatchList({
 }: Props) {
   const [query, setQuery] = useState('');
   const { data, loading, error, reload } = useApiResource(
-    () => api.get<{ matches: MatchSummary[]; cached: boolean }>('/matches/live'),
+    () =>
+      api.get<{ matches: MatchSummary[]; cached: boolean; kind?: FixtureKind }>(
+        '/matches/live'
+      ),
     []
   );
+
+  // The endpoint falls back to the next kickoffs when nothing is in play.
+  const kind: FixtureKind = data?.kind ?? 'live';
+  const upcoming = kind === 'upcoming';
 
   const filtered = useMemo(() => {
     let list = data?.matches ?? [];
@@ -71,9 +81,15 @@ export function MatchList({
 
     return [...byLeague.values()]
       .map((group) => {
-        // Sort by team name, not minute: minutes tick on every refresh and
-        // would make rows jump around under the reader's cursor.
-        group.matches.sort((a, b) => a.homeTeam.localeCompare(b.homeTeam));
+        // Kickoffs read best in the order they will happen. Live rows sort by
+        // team name instead of minute: minutes tick on every refresh and would
+        // make rows jump around under the reader's cursor.
+        group.matches.sort((a, b) =>
+          upcoming && a.kickoff && b.kickoff
+            ? Date.parse(a.kickoff) - Date.parse(b.kickoff) ||
+              a.homeTeam.localeCompare(b.homeTeam)
+            : a.homeTeam.localeCompare(b.homeTeam)
+        );
 
         const rank = majorLeagueRank(group.league, group.country);
         const hasFollowed =
@@ -93,7 +109,7 @@ export function MatchList({
           a.league.localeCompare(b.league) ||
           (a.country ?? '').localeCompare(b.country ?? '')
       );
-  }, [filtered, followedTeams]);
+  }, [filtered, followedTeams, upcoming]);
 
   const liveCount = useMemo(
     () => filtered.filter((m) => m.status === 'live').length,
@@ -123,7 +139,7 @@ export function MatchList({
   return (
     <>
       <PageHeader
-        title={title}
+        title={upcoming ? (upcomingTitle ?? title) : title}
         subtitle={
           <>
             {liveCount > 0 && (
@@ -132,6 +148,7 @@ export function MatchList({
                 {liveCount} live
               </span>
             )}
+            {upcoming && <span className={styles.soonPill}>Nothing in play</span>}
             <span>
               {filtered.length} {filtered.length === 1 ? 'match' : 'matches'} across{' '}
               {groups.length} {groups.length === 1 ? 'league' : 'leagues'}
@@ -153,6 +170,12 @@ export function MatchList({
           </div>
         }
       />
+
+      {upcoming && filtered.length > 0 && (
+        <p className={styles.fallbackNote}>
+          No matches are being played right now — here are the next kickoffs.
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className={styles.state}>
@@ -188,6 +211,7 @@ export function MatchList({
                     match={m}
                     isSaved={savedIds.has(m.matchId)}
                     onToggleSave={onToggleSave}
+                    showKickoff={upcoming}
                     isFollowed={
                       !!followedTeams &&
                       (followedTeams.has(m.homeTeam) || followedTeams.has(m.awayTeam))
@@ -223,27 +247,62 @@ function PageHeader({
   );
 }
 
+/** "15:30" today, "Sat 15:30" this week, "1 Sep 15:30" beyond it. */
+function formatKickoff(iso: string): { time: string; day: string | null } {
+  const at = new Date(iso);
+  // 'numeric' hour, so a 24h locale gets "18:30" and a 12h one "6:30 PM"
+  // rather than the padded "06:30 PM".
+  const time = at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+  const today = new Date();
+  const sameDay =
+    at.getDate() === today.getDate() &&
+    at.getMonth() === today.getMonth() &&
+    at.getFullYear() === today.getFullYear();
+  if (sameDay) return { time, day: null };
+
+  const withinAWeek = at.getTime() - today.getTime() < 6 * 24 * 60 * 60 * 1000;
+  return {
+    time,
+    day: at.toLocaleDateString(
+      undefined,
+      withinAWeek ? { weekday: 'short' } : { day: 'numeric', month: 'short' }
+    ),
+  };
+}
+
 function MatchRow({
   match,
   isSaved,
   isFollowed,
+  showKickoff,
   onToggleSave,
 }: {
   match: MatchSummary;
   isSaved: boolean;
   isFollowed: boolean;
+  showKickoff: boolean;
   onToggleSave: (matchId: string) => void;
 }) {
   const label = `${match.homeTeam} v ${match.awayTeam}`;
   const isLive = match.status === 'live';
   const finished = match.status === 'finished';
+  // Before kickoff there is no score to show — 0–0 would read as a result.
+  const kickoff =
+    showKickoff && match.status === 'not_started' && match.kickoff
+      ? formatKickoff(match.kickoff)
+      : null;
   // Dim the loser's name once a result stands, the way a printed table would.
   const homeLead = finished && match.homeScore > match.awayScore;
   const awayLead = finished && match.awayScore > match.homeScore;
   const drawn = finished && match.homeScore === match.awayScore;
 
   return (
-    <li className={`${styles.row} ${isLive ? styles.rowLive : ''}`}>
+    <li
+      className={`${styles.row} ${isLive ? styles.rowLive : ''} ${
+        kickoff ? styles.rowUpcoming : ''
+      }`}
+    >
       <a className={styles.link} href={href(`/match/${encodeURIComponent(match.matchId)}`)}>
         <div className={styles.statusRail}>
           {isLive ? (
@@ -253,6 +312,11 @@ function MatchRow({
                 <span className={styles.liveDot} aria-hidden="true" />
                 Live
               </span>
+            </>
+          ) : kickoff ? (
+            <>
+              {kickoff.day && <span className={styles.kickoffDay}>{kickoff.day}</span>}
+              <span className={styles.kickoffTime}>{kickoff.time}</span>
             </>
           ) : (
             <span className={finished ? styles.ft : styles.pending}>
@@ -268,7 +332,7 @@ function MatchRow({
               {match.homeTeam}
             </span>
             <span className={`${styles.teamScore} ${homeLead || drawn ? styles.won : ''}`}>
-              {match.homeScore}
+              {kickoff ? '' : match.homeScore}
             </span>
           </div>
           <div className={styles.teamLine}>
@@ -277,7 +341,7 @@ function MatchRow({
               {match.awayTeam}
             </span>
             <span className={`${styles.teamScore} ${awayLead || drawn ? styles.won : ''}`}>
-              {match.awayScore}
+              {kickoff ? '' : match.awayScore}
             </span>
           </div>
         </div>

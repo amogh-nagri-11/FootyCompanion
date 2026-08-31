@@ -76,6 +76,7 @@ function Routes() {
       <MatchList
         key="saved"
         title="Saved matches"
+        upcomingTitle="Upcoming saved matches"
         emptyMessage="No saved matches are live right now. Saved matches appear here while they are being played."
         onlyMatchIds={saved}
         savedIds={saved}
@@ -89,7 +90,8 @@ function Routes() {
     <MatchList
       key="live"
       title="Live matches"
-      emptyMessage="No matches are in play right now."
+      upcomingTitle="Upcoming matches"
+      emptyMessage="No matches are in play right now, and no kickoffs are scheduled for the next couple of days."
       savedIds={saved}
       onToggleSave={toggleSave}
       followedTeams={teams}

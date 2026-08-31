@@ -293,6 +293,8 @@ export interface MatchSummary {
   status: LiveMatchState['status'];
   league: string | null;
   country: string | null;
+  /** Kickoff time (ISO). Present for upcoming fixtures; the client formats it. */
+  kickoff: string | null;
 }
 
 interface ApiFixtureWithLeague extends ApiFixture {
@@ -311,6 +313,7 @@ function toSummary(fixture: ApiFixtureWithLeague): MatchSummary {
     status: mapStatus(fixture.fixture?.status?.short),
     league: fixture.league?.name ?? null,
     country: fixture.league?.country ?? null,
+    kickoff: fixture.fixture?.date ?? null,
   };
 }
 
@@ -325,15 +328,36 @@ async function fetchMockLiveFixtures(): Promise<MatchSummary[]> {
     status: 'live' as const,
     league: 'Mock League',
     country: 'Mockland',
+    kickoff: null,
   }));
 }
 
-async function fetchRealLiveFixtures(): Promise<MatchSummary[]> {
-  const res = await fetch(apiUrl('fixtures?live=all'), { headers: apiHeaders() });
+async function fetchMockUpcomingFixtures(): Promise<MatchSummary[]> {
+  const soon = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
+  return [
+    ['mock-up-1', 'Liverpool', 'Everton', 45],
+    ['mock-up-2', 'Real Madrid', 'Barcelona', 150],
+  ].map(([matchId, homeTeam, awayTeam, inMinutes]) => ({
+    matchId: matchId as string,
+    homeTeam: homeTeam as string,
+    awayTeam: awayTeam as string,
+    homeScore: 0,
+    awayScore: 0,
+    minute: 0,
+    status: 'not_started' as const,
+    league: 'Mock League',
+    country: 'Mockland',
+    kickoff: soon(inMinutes as number),
+  }));
+}
+
+/** GET /fixtures?<query>, with the two failure modes this API has folded in. */
+async function fetchFixtureList(query: string, label: string): Promise<MatchSummary[]> {
+  const res = await fetch(apiUrl(`fixtures?${query}`), { headers: apiHeaders() });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`API-Football live fixtures request failed: ${res.status} ${body.slice(0, 200)}`);
+    throw new Error(`API-Football ${label} request failed: ${res.status} ${body.slice(0, 200)}`);
   }
 
   const data = (await res.json()) as ApiFixturesResponse;
@@ -348,8 +372,53 @@ async function fetchRealLiveFixtures(): Promise<MatchSummary[]> {
   return (data.response ?? []).map(toSummary).filter((m) => m.matchId);
 }
 
+async function fetchRealLiveFixtures(): Promise<MatchSummary[]> {
+  return fetchFixtureList('live=all', 'live fixtures');
+}
+
+/** YYYY-MM-DD in UTC, which is the calendar the API's `date` filter uses. */
+function utcDate(offsetDays = 0): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The list screen is worth showing even when nothing is in play, so this backs
+ * it with the next kickoffs instead.
+ *
+ * `next=N` would be the natural call but it is a paid-plan parameter, so this
+ * pages by UTC day and filters to kickoffs still ahead of us. Late in the UTC
+ * day that leaves almost nothing, hence the roll-over into tomorrow — capped at
+ * two upstream calls because the free plan allows only 100 a day.
+ */
+const UPCOMING_MIN_RESULTS = 12;
+const UPCOMING_MAX_RESULTS = 100;
+
+async function fetchRealUpcomingFixtures(): Promise<MatchSummary[]> {
+  const now = Date.now();
+  const ahead = (list: MatchSummary[]) =>
+    list.filter((m) => m.kickoff && Date.parse(m.kickoff) > now);
+
+  let fixtures = ahead(await fetchFixtureList(`date=${utcDate()}&status=NS`, 'upcoming fixtures'));
+
+  if (fixtures.length < UPCOMING_MIN_RESULTS) {
+    fixtures = fixtures.concat(
+      ahead(await fetchFixtureList(`date=${utcDate(1)}&status=NS`, 'upcoming fixtures'))
+    );
+  }
+
+  return fixtures
+    .sort((a, b) => Date.parse(a.kickoff!) - Date.parse(b.kickoff!))
+    .slice(0, UPCOMING_MAX_RESULTS);
+}
+
 export async function fetchLiveFixtures(): Promise<MatchSummary[]> {
   return config.useMockSportsData ? fetchMockLiveFixtures() : fetchRealLiveFixtures();
+}
+
+export async function fetchUpcomingFixtures(): Promise<MatchSummary[]> {
+  return config.useMockSportsData ? fetchMockUpcomingFixtures() : fetchRealUpcomingFixtures();
 }
 
 export async function fetchLiveMatch(matchId: string): Promise<LiveMatchState> {
