@@ -1,0 +1,73 @@
+/* Shared shimmer for loading placeholders. A skeleton that mirrors the real
+   layout stops the page jumping when data lands. */
+.line {
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    90deg,
+    var(--surface-hover) 0%,
+    var(--surface-sunken) 40%,
+    var(--surface-hover) 80%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.4s var(--ease) infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+.groups {
+  display: grid;
+  gap: 22px;
+}
+
+.groupHeader {
+  height: 12px;
+  width: 140px;
+  margin-bottom: 12px;
+  composes: line;
+}
+
+.rows {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.crest {
+  width: 30px;
+  height: 30px;
+  border-radius: 32%;
+  composes: line;
+}
+
+.stack {
+  display: grid;
+  gap: 9px;
+}
+
+.teamLine {
+  height: 13px;
+  composes: line;
+}
+
+.score {
+  width: 44px;
+  height: 24px;
+  composes: line;
+}

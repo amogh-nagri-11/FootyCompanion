@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { MatchList } from './MatchList';
+import { TeamCrest } from './TeamCrest';
 import styles from './Screens.module.css';
 
 interface Props {
@@ -50,7 +51,10 @@ export function FollowingScreen({ teams, savedIds, onToggleSave, onToggleFollow 
           <div className={styles.card} style={{ marginBottom: 20 }}>
             {[...teams].sort().map((team) => (
               <div key={team} className={styles.row}>
-                <span className={styles.teamName}>{team}</span>
+                <span className={styles.teamName}>
+                  <TeamCrest team={team} size={24} />
+                  {team}
+                </span>
                 <button
                   className={styles.ghost}
                   type="button"

@@ -1,0 +1,15 @@
+.crest {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 32%;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+  /* Inset highlight reads as a badge rather than a flat coloured square. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    var(--shadow-sm);
+}
