@@ -1,119 +1,70 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../lib/api';
-import { useApiResource } from '../hooks/useApiResource';
-import type { Profile } from '../types';
-import { useApiResource as useResource } from '../hooks/useApiResource';
-import styles from './Screens.module.css';
+import { useProfile } from '../lib/profileContext';
+import type { Profile, ProfileFieldsPatch } from '../types';
+import { Avatar } from './Avatar';
+import { SecuritySection } from './SecuritySection';
+import { DangerZone } from './DangerZone';
+import { FplTeamSection } from './FplTeamSection';
+import styles from './ProfileScreen.module.css';
 
-function FplTeamSection() {
-  const { data, loading, reload } = useResource(
-    () => api.get<{ fplTeamId: number | null }>('/fpl/team'),
-    []
-  );
-  const [draft, setDraft] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+const BIO_MAX = 300;
 
-  const [seeded, setSeeded] = useState(false);
-  if (data && !seeded) {
-    setSeeded(true);
-    setDraft(data.fplTeamId ? String(data.fplTeamId) : '');
-  }
+function memberSince(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
 
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setNotice(null);
-    setSaving(true);
-    try {
-      await api.put<{ fplTeamId: number }>('/fpl/team', { teamId: Number(draft.trim()) });
-      setNotice('FPL team linked. Your points will update during Premier League matches.');
-      reload();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function unlink() {
-    setError(null);
-    setNotice(null);
-    try {
-      await api.del('/fpl/team');
-      setDraft('');
-      setNotice('FPL team unlinked.');
-      reload();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not unlink.');
-    }
-  }
-
-  if (loading) return <div className={styles.state}>Loading FPL link…</div>;
-
+/** The name to show: display name if set, else the handle, else the email local part. */
+function shownName(profile: Profile): string {
   return (
-    <>
-      <h3 className={styles.title} style={{ fontSize: 15, marginTop: 26 }}>
-        Fantasy Premier League
-      </h3>
-      <p className={styles.subtitle}>
-        Your team id is the number in your FPL URL — e.g.{' '}
-        <code>fantasy.premierleague.com/entry/</code>
-        <strong>1234567</strong>
-        <code>/event/1</code>.
-      </p>
-
-      {notice && <p className={styles.notice}>{notice}</p>}
-      {error && <p className={styles.noticeError}>{error}</p>}
-
-      <form className={styles.form} onSubmit={save}>
-        <input
-          className={styles.input}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="FPL team id"
-          inputMode="numeric"
-          aria-label="FPL team id"
-        />
-        <button className={styles.primary} type="submit" disabled={saving || !draft.trim()}>
-          {saving ? 'Checking…' : data?.fplTeamId ? 'Update' : 'Link team'}
-        </button>
-        {data?.fplTeamId != null && (
-          <button className={styles.ghost} type="button" onClick={() => void unlink()}>
-            Unlink
-          </button>
-        )}
-      </form>
-    </>
+    profile.display_name?.trim() ||
+    profile.username?.trim() ||
+    profile.email?.split('@')[0] ||
+    'Your profile'
   );
 }
 
 export function ProfileScreen({ email }: { email?: string }) {
-  const { data, loading, error } = useApiResource(() => api.get<Profile>('/profile'), []);
-  const [username, setUsername] = useState('');
+  // Shared with the header, so a saved display name or avatar shows up there
+  // immediately rather than after a reload.
+  const { profile: data, loading, error, reload } = useProfile();
+
+  const [form, setForm] = useState<ProfileFieldsPatch>({});
+  const [seededFor, setSeededFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Seed the field from the loaded profile during render rather than in an
-  // effect, so it never renders a frame with an empty box. Keyed on the id so
-  // typing is not clobbered on every re-render.
-  const [seededFor, setSeededFor] = useState<string | null>(null);
+  // Seed the form during render rather than in an effect, so the inputs never
+  // paint a frame empty. Keyed on the row id so typing is not clobbered.
   if (data && seededFor !== data.id) {
     setSeededFor(data.id);
-    setUsername(data.username ?? '');
+    setForm({
+      username: data.username ?? '',
+      displayName: data.display_name ?? '',
+      bio: data.bio ?? '',
+      avatarUrl: data.avatar_url ?? '',
+      favouriteTeam: data.favourite_team ?? '',
+    });
   }
 
-  async function handleSubmit(e: FormEvent) {
+  const set = <K extends keyof ProfileFieldsPatch>(key: K, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  async function save(e: FormEvent) {
     e.preventDefault();
     setNotice(null);
     setSaveError(null);
     setSaving(true);
     try {
-      const updated = await api.patch<Profile>('/profile', { username: username.trim() });
-      setUsername(updated.username ?? '');
-      setNotice('Username updated.');
+      const updated = await api.patch<Profile>('/profile', form);
+      const skipped = updated.skipped ?? [];
+      setNotice(
+        skipped.length > 0
+          ? `Saved. ${skipped.join(', ')} could not be stored — the database migration has not been run yet.`
+          : 'Profile saved.'
+      );
+      reload();
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : 'Could not save.');
     } finally {
@@ -123,30 +74,152 @@ export function ProfileScreen({ email }: { email?: string }) {
 
   if (loading) return <div className={styles.state}>Loading profile…</div>;
   if (error) return <div className={`${styles.state} ${styles.error}`}>{error}</div>;
+  if (!data) return null;
+
+  const bioLength = (form.bio ?? '').length;
+  const displayEmail = data.email ?? email;
 
   return (
-    <>
-      <h2 className={styles.title}>Profile</h2>
-      <p className={styles.subtitle}>Signed in as {email}.</p>
+    <div className={styles.page}>
+      <section className={styles.card} aria-label="Your profile">
+        <div className={styles.identity}>
+          <Avatar name={shownName(data)} url={data.avatar_url} size={64} />
+          <div className={styles.identityText}>
+            <h1 className={styles.name}>{shownName(data)}</h1>
+            <p className={styles.handle}>
+              {data.username ? `@${data.username}` : 'No username set'}
+              {displayEmail ? ` · ${displayEmail}` : ''}
+            </p>
+          </div>
+        </div>
 
-      {notice && <p className={styles.notice}>{notice}</p>}
-      {saveError && <p className={styles.noticeError}>{saveError}</p>}
+        {data.bio && <p className={styles.bio}>{data.bio}</p>}
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <input
-          className={styles.input}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
-          maxLength={40}
-          aria-label="Username"
-        />
-        <button className={styles.primary} type="submit" disabled={saving || !username.trim()}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </form>
+        <div className={styles.metaRow}>
+          <span className={styles.metaItem}>
+            <span className={styles.metaValue}>{data.stats?.followedTeams ?? 0}</span>
+            Teams followed
+          </span>
+          <span className={styles.metaItem}>
+            <span className={styles.metaValue}>{data.stats?.savedMatches ?? 0}</span>
+            Matches saved
+          </span>
+          {data.favourite_team && (
+            <span className={styles.metaItem}>
+              <span className={styles.metaValue}>{data.favourite_team}</span>
+              Favourite club
+            </span>
+          )}
+          <span className={styles.metaItem}>
+            <span className={styles.metaValue}>{memberSince(data.created_at)}</span>
+            Member since
+          </span>
+        </div>
+      </section>
+
+      {data.migrationPending && (
+        <p className={styles.warning}>
+          <strong>Database migration pending.</strong> Display name, bio, avatar, favourite
+          club and FPL linking cannot be saved until this runs against the Supabase project:
+          <code className={styles.code}>db/migrations/001_profile_fields.sql</code>
+        </p>
+      )}
+
+      <section className={styles.card} aria-label="Edit profile">
+        <h2 className={styles.sectionTitle}>Edit profile</h2>
+        <p className={styles.sectionHint}>How you appear in the app.</p>
+
+        {notice && <p className={styles.notice}>{notice}</p>}
+        {saveError && <p className={styles.error}>{saveError}</p>}
+
+        <form onSubmit={save}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="displayName">
+              Display name
+            </label>
+            <input
+              id="displayName"
+              className={styles.input}
+              value={form.displayName ?? ''}
+              onChange={(e) => set('displayName', e.target.value)}
+              maxLength={50}
+              placeholder="Amogh Bhat Nagri"
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="username">
+              Username
+            </label>
+            <input
+              id="username"
+              className={styles.input}
+              value={form.username ?? ''}
+              onChange={(e) => set('username', e.target.value)}
+              maxLength={30}
+              placeholder="amogh"
+            />
+            <span className={styles.inlineHint}>
+              3–30 characters. Letters, numbers, and . _ - only.
+            </span>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="bio">
+              Bio
+            </label>
+            <textarea
+              id="bio"
+              className={styles.textarea}
+              value={form.bio ?? ''}
+              onChange={(e) => set('bio', e.target.value)}
+              maxLength={BIO_MAX}
+              placeholder="Arsenal supporter. Second screen enthusiast."
+            />
+            <span className={`${styles.counter} ${bioLength > BIO_MAX ? styles.over : ''}`}>
+              {bioLength}/{BIO_MAX}
+            </span>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="favouriteTeam">
+              Favourite club
+            </label>
+            <input
+              id="favouriteTeam"
+              className={styles.input}
+              value={form.favouriteTeam ?? ''}
+              onChange={(e) => set('favouriteTeam', e.target.value)}
+              maxLength={60}
+              placeholder="Arsenal"
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="avatarUrl">
+              Avatar image URL
+            </label>
+            <input
+              id="avatarUrl"
+              className={styles.input}
+              value={form.avatarUrl ?? ''}
+              onChange={(e) => set('avatarUrl', e.target.value)}
+              placeholder="https://example.com/photo.jpg"
+            />
+            <span className={styles.inlineHint}>
+              Leave empty to use your initials.
+            </span>
+          </div>
+
+          <button className={styles.primary} type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save profile'}
+          </button>
+        </form>
+      </section>
 
       <FplTeamSection />
-    </>
+      <SecuritySection email={displayEmail} />
+      <DangerZone email={displayEmail} />
+    </div>
   );
 }

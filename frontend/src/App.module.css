@@ -71,6 +71,21 @@
   min-width: 0;
 }
 
+.accountLink {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+}
+
+.accountLink:hover {
+  background: var(--draw-soft);
+}
+
 .email {
   font-size: 12px;
   color: var(--text-muted);

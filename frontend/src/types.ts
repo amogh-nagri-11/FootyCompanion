@@ -71,6 +71,26 @@ export interface Profile {
   id: string;
   username: string | null;
   created_at: string;
+  email?: string | null;
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+  favourite_team?: string | null;
+  fpl_team_id?: number | null;
+  updated_at?: string | null;
+  stats?: { followedTeams: number; savedMatches: number };
+  /** True when db/migrations/001_profile_fields.sql has not been applied. */
+  migrationPending?: boolean;
+  /** Fields the database could not store, echoed back after a save. */
+  skipped?: string[];
+}
+
+export interface ProfileFieldsPatch {
+  username?: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  favouriteTeam?: string;
 }
 
 export interface ArchivedMatchRow {

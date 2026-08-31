@@ -8,6 +8,9 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { useAuth } from './hooks/useAuth';
 import { useRoute, href } from './hooks/useRoute';
 import { useUserLists } from './hooks/useUserLists';
+import { ProfileProvider } from './hooks/useProfile';
+import { useProfile, profileName } from './lib/profileContext';
+import { Avatar } from './components/Avatar';
 import { configError } from './config';
 import styles from './App.module.css';
 
@@ -86,7 +89,20 @@ function ProfileScreenWithEmail() {
   return <ProfileScreen email={session?.user.email} />;
 }
 
-export default function App() {
+/** Avatar and name in the header, linking to the profile screen. */
+function AccountChip({ email }: { email?: string }) {
+  const { profile } = useProfile();
+  const name = profileName(profile, email);
+
+  return (
+    <a className={styles.accountLink} href={href('/profile')} title={email}>
+      <Avatar name={name} url={profile?.avatar_url} size={26} />
+      <span className={styles.email}>{name}</span>
+    </a>
+  );
+}
+
+function AppShell() {
   const { session, loading, signOut } = useAuth();
   const segments = useRoute();
   const current = `/${segments[0] ?? ''}`;
@@ -112,7 +128,7 @@ export default function App() {
             FootyCompanion
           </a>
           <div className={styles.account}>
-            <span className={styles.email}>{session.user.email}</span>
+            <AccountChip email={session.user.email} />
             <button className={styles.signOut} type="button" onClick={() => void signOut()}>
               Sign out
             </button>
@@ -140,5 +156,13 @@ export default function App() {
         <Routes />
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ProfileProvider>
+      <AppShell />
+    </ProfileProvider>
   );
 }
