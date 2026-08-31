@@ -1,4 +1,4 @@
-import { redis } from '../../redis.js';
+import { cacheGetJson, cacheSetJson } from '../../redis.js';
 
 const BASE = 'https://fantasy.premierleague.com/api';
 
@@ -91,13 +91,17 @@ async function fetchJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Read-through Redis cache. A cached value survives restarts and is shared by every subscriber. */
+/**
+ * Read-through Redis cache. A cached value survives restarts and is shared by
+ * every subscriber. An unreachable cache reports a miss, so FPL is hit more
+ * often than we would like rather than the panel failing outright.
+ */
 async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>): Promise<T> {
-  const hit = await redis.get(key);
-  if (hit) return JSON.parse(hit) as T;
+  const hit = await cacheGetJson<T>(key);
+  if (hit !== null) return hit;
 
   const value = await load();
-  await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+  await cacheSetJson(key, value, ttlSeconds);
   return value;
 }
 

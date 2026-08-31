@@ -1,4 +1,4 @@
-import { redis } from '../redis.js';
+import { cacheGetJson, cacheSetJson } from '../redis.js';
 import { fetchLiveFixtures, fetchUpcomingFixtures, MatchSummary } from './sportsApi.js';
 
 const LIVE_KEY = 'matches:live';
@@ -27,11 +27,13 @@ async function cached(
   ttl: number,
   load: () => Promise<MatchSummary[]>
 ): Promise<{ matches: MatchSummary[]; cached: boolean }> {
-  const hit = await redis.get(key);
-  if (hit) return { matches: JSON.parse(hit) as MatchSummary[], cached: true };
+  // A cache failure reports a miss, so an unreachable Redis makes this screen
+  // slower and more expensive against the API quota, never broken.
+  const hit = await cacheGetJson<MatchSummary[]>(key);
+  if (hit) return { matches: hit, cached: true };
 
   const matches = await load();
-  await redis.set(key, JSON.stringify(matches), 'EX', ttl);
+  await cacheSetJson(key, matches, ttl);
   return { matches, cached: false };
 }
 
