@@ -1,0 +1,268 @@
+.page {
+  display: grid;
+  gap: 18px;
+  max-width: 640px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.sectionTitle {
+  margin: 0 0 3px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sectionHint {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Identity header */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.identityText {
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.handle {
+  margin: 1px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.bio {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.metaRow {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.metaItem {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.metaValue {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+/* Forms */
+.field {
+  margin-bottom: 13px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 74px;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--home);
+  box-shadow: 0 0 0 3px var(--home-soft);
+}
+
+.counter {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.primary {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--home);
+  color: #fff;
+  font-weight: 600;
+  padding: 9px 16px;
+}
+
+.primary:hover:not(:disabled) {
+  background: #1a43b8;
+}
+
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ghost {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--draw-soft);
+}
+
+.ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.danger {
+  border: 1px solid #f0b4ae;
+  background: var(--surface);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+.danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Messages */
+.notice,
+.error,
+.warning {
+  margin: 0 0 13px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.notice {
+  background: var(--home-soft);
+  color: #1a3a8f;
+  border: 1px solid #c5d5f7;
+}
+
+.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid #f5c6c2;
+}
+
+.warning {
+  background: #fdf6e3;
+  color: #7a5b00;
+  border: 1px solid #f0dfae;
+}
+
+.code {
+  display: block;
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: rgb(20 24 29 / 0.06);
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.dangerCard {
+  composes: card;
+  border-color: #f0b4ae;
+}
+
+.dangerTitle {
+  composes: sectionTitle;
+  color: var(--danger);
+}
+
+.state {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+.inlineHint {
+  font-size: 12px;
+  color: var(--text-faint);
+}

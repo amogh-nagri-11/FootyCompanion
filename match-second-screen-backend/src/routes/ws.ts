@@ -43,8 +43,8 @@ export async function wsRoutes(app: FastifyInstance) {
 
     const subscriber = subscribe(matchId, connection, user.id, fplTeamId);
 
-    startPolling(matchId, (id, newEvents, state, winProb) => {
-      broadcast(id, { type: 'update', events: newEvents, state, winProb });
+    startPolling(matchId, (id, newEvents, state, winProb, momentum) => {
+      broadcast(id, { type: 'update', events: newEvents, state, winProb, momentum });
       void onMatchUpdate(id, newEvents, state);
     });
 
@@ -59,6 +59,7 @@ export async function wsRoutes(app: FastifyInstance) {
         events: known.state.events,
         state: known.state,
         winProb: known.winProb,
+        momentum: known.momentum,
       });
     }
 

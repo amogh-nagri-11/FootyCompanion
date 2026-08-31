@@ -40,6 +40,14 @@ export const config = {
   // nothing and burns quota: one match at 15s is ~240 requests/hour, already
   // over the free tier's 100/day. Tune to the plan before running real matches.
   pollIntervalMs: positiveInt('POLL_INTERVAL_MS', 15000),
+  // Post-match summaries. 'none' (the default) keeps the deterministic
+  // summary and makes no external call, so the feature is inert until a
+  // provider and key are supplied.
+  llmProvider: (process.env.LLM_PROVIDER ?? 'none').trim().toLowerCase(),
+  groqApiKey: process.env.GROQ_API_KEY?.trim() ?? '',
+  geminiApiKey: process.env.GEMINI_API_KEY?.trim() ?? '',
+  llmModel: process.env.LLM_MODEL?.trim() ?? '',
+  llmTimeoutMs: positiveInt('LLM_TIMEOUT_MS', 20000),
   // A hot retry loop against a failing API (bad key, exhausted quota) is worse
   // than going quiet, so give up on a match after this many consecutive errors.
   maxConsecutivePollFailures: positiveInt('MAX_CONSECUTIVE_POLL_FAILURES', 5),
