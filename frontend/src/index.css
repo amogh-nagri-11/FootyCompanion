@@ -1,34 +1,158 @@
+/*
+ * Design tokens.
+ *
+ * Two themes out of one set of names: the light palette lives on :root and
+ * every dark override re-binds the same variables, so components never branch
+ * on theme. `[data-theme]` (set by the header toggle) has to beat the media
+ * query in both directions, which is why the dark rules are duplicated — once
+ * guarded against an explicit light choice, once unconditional.
+ */
 :root {
-  /* Neutrals carry the whole layout; the two team accents are the only colour. */
-  --bg: #f6f7f9;
+  --bg: #f4f5f7;
   --surface: #ffffff;
-  --border: #e3e6ea;
-  --border-strong: #cbd1d8;
+  --surface-sunken: #f7f8fa;
+  --surface-hover: #f1f3f6;
+  --border: #e4e7ec;
+  --border-strong: #cfd4dc;
 
-  --text: #14181d;
-  --text-muted: #5c6773;
-  --text-faint: #8b95a1;
+  --text: #101828;
+  --text-muted: #5b6472;
+  --text-faint: #8a93a2;
 
-  --home: #1d4ed8;
+  /* Brand: pitch green, used for primary actions and the live state alike.
+     One accent reads as a product; two read as a template. */
+  --brand: #067a4a;
+  --brand-hover: #05643d;
+  --brand-soft: #e4f4ec;
+  --brand-contrast: #ffffff;
+
+  --home: #2f5cd8;
   --home-soft: #e8eefc;
-  --away: #b45309;
-  --away-soft: #fdf1e0;
-  --draw: #9aa4b0;
-  --draw-soft: #eef0f3;
+  --away: #c2410c;
+  --away-soft: #fdf0e8;
+  --draw: #98a2b3;
+  --draw-soft: #eef0f4;
 
-  --live: #17803d;
+  --live: #067a4a;
+  --live-soft: #e4f4ec;
   --danger: #b42318;
   --danger-soft: #fdeceb;
+  --danger-border: #f5c6c2;
+  --warning: #b54708;
+  --star: #d19c00;
 
-  --radius: 10px;
-  --radius-sm: 6px;
+  /* Layered rather than one flat drop: cards should lift off the background
+     without the page looking like it is made of stickers. */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 28px -8px rgba(16, 24, 40, 0.16), 0 4px 8px -4px rgba(16, 24, 40, 0.06);
+  --ring: 0 0 0 3px var(--brand-soft);
 
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  --scrim: rgba(255, 255, 255, 0.78);
+
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  /* Tabular figures keep the score and minute from jittering as they change. */
-  --font-numeric: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+
+  /* Height of the mobile tab bar, so page content can clear it. */
+  --tabbar-h: 58px;
 
   color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0b0d10;
+    --surface: #14171c;
+    --surface-sunken: #101317;
+    --surface-hover: #1c2028;
+    --border: #232830;
+    --border-strong: #333a45;
+
+    --text: #f2f4f7;
+    --text-muted: #98a2b3;
+    --text-faint: #6b7482;
+
+    --brand: #22c55e;
+    --brand-hover: #16a34a;
+    --brand-soft: #0f2a1d;
+    --brand-contrast: #05140c;
+
+    --home: #7aa2ff;
+    --home-soft: #16203a;
+    --away: #fb923c;
+    --away-soft: #2a1a10;
+    --draw: #6b7482;
+    --draw-soft: #1c2028;
+
+    --live: #22c55e;
+    --live-soft: #0f2a1d;
+    --danger: #f97066;
+    --danger-soft: #2a1414;
+    --danger-border: #4a2320;
+    --warning: #fdb022;
+    --star: #fac515;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 16px 32px -10px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.4);
+    --ring: 0 0 0 3px rgba(34, 197, 94, 0.28);
+
+    --scrim: rgba(11, 13, 16, 0.72);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0b0d10;
+  --surface: #14171c;
+  --surface-sunken: #101317;
+  --surface-hover: #1c2028;
+  --border: #232830;
+  --border-strong: #333a45;
+
+  --text: #f2f4f7;
+  --text-muted: #98a2b3;
+  --text-faint: #6b7482;
+
+  --brand: #22c55e;
+  --brand-hover: #16a34a;
+  --brand-soft: #0f2a1d;
+  --brand-contrast: #05140c;
+
+  --home: #7aa2ff;
+  --home-soft: #16203a;
+  --away: #fb923c;
+  --away-soft: #2a1a10;
+  --draw: #6b7482;
+  --draw-soft: #1c2028;
+
+  --live: #22c55e;
+  --live-soft: #0f2a1d;
+  --danger: #f97066;
+  --danger-soft: #2a1414;
+  --danger-border: #4a2320;
+  --warning: #fdb022;
+  --star: #fac515;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 32px -10px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.4);
+  --ring: 0 0 0 3px rgba(34, 197, 94, 0.28);
+
+  --scrim: rgba(11, 13, 16, 0.72);
+
+  color-scheme: dark;
 }
 
 *,
@@ -50,10 +174,12 @@ body {
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 button {
@@ -61,13 +187,21 @@ button {
   cursor: pointer;
 }
 
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 
 :focus-visible {
-  outline: 2px solid var(--home);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--text);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -77,5 +211,6 @@ input {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

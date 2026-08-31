@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { BallIcon } from './icons';
 import styles from './AuthForm.module.css';
 
 type Mode = 'signin' | 'signup';
@@ -97,6 +98,9 @@ export function AuthForm() {
   return (
     <div className={styles.page}>
       <div className={styles.card}>
+        <span className={styles.mark} aria-hidden="true">
+          <BallIcon size={24} />
+        </span>
         <h1 className={styles.brand}>FootyCompanion</h1>
         <p className={styles.tagline}>Live scores, events and win probability.</p>
 

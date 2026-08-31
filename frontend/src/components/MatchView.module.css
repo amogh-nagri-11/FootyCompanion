@@ -1,23 +1,31 @@
 .layout {
   display: grid;
   gap: 14px;
+  /* Mobile: one column, in reading order — score, probability, then the feed. */
+  grid-template-areas:
+    'banner'
+    'board'
+    'side'
+    'feed';
 }
 
 .banner {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 11px 14px;
+  padding: 11px 15px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
   font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
 .bannerEnded {
   composes: banner;
-  background: var(--draw-soft);
+  background: var(--surface-hover);
   color: var(--text);
   font-weight: 600;
 }
@@ -25,7 +33,7 @@
 .bannerError {
   composes: banner;
   background: var(--danger-soft);
-  border-color: #f5c6c2;
+  border-color: var(--danger-border);
   color: var(--danger);
 }
 
@@ -34,9 +42,17 @@
   height: 13px;
   flex: none;
   border: 2px solid var(--border-strong);
-  border-top-color: var(--home);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 700ms linear infinite;
+}
+
+.bigSpinner {
+  composes: spinner;
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+  margin-bottom: 14px;
 }
 
 @keyframes spin {
@@ -46,24 +62,28 @@
 }
 
 .placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 40px 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 52px 24px 44px;
   text-align: center;
 }
 
 .placeholderTitle {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 600;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .placeholderText {
-  margin: 0 auto;
-  font-size: 13px;
+  margin: 0;
+  font-size: 13.5px;
   color: var(--text-muted);
-  max-width: 40ch;
+  max-width: 42ch;
 }
 
 .bannerSlot {
@@ -83,19 +103,72 @@
   align-content: start;
 }
 
-@media (min-width: 860px) {
-  .sideSlot {
-    gap: 16px;
-  }
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-/* Mobile: one column, in reading order — score, probability, then the feed. */
-.layout {
-  grid-template-areas:
-    'banner'
-    'board'
-    'side'
-    'feed';
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.back:hover {
+  color: var(--brand);
+}
+
+.actionButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  padding: 5px 12px 5px 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.action:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.actionLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 13ch;
+}
+
+.actionOn {
+  composes: action;
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 
 /* Wide: score across the top, the feed given the left (larger) column because
@@ -110,56 +183,8 @@
     gap: 16px;
     align-items: start;
   }
-}
 
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.back {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--home);
-  text-decoration: none;
-}
-
-.back:hover {
-  text-decoration: underline;
-}
-
-.actionButtons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.action {
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.action:hover {
-  background: var(--draw-soft);
-  color: var(--text);
-}
-
-.actionOn {
-  composes: action;
-  border-color: var(--home);
-  background: var(--home-soft);
-  color: var(--home);
+  .sideSlot {
+    gap: 16px;
+  }
 }

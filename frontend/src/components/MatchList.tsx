@@ -4,6 +4,9 @@ import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
 import type { MatchSummary } from '../types';
 import { majorLeagueRank, TIER_LABELS, type Tier } from '../lib/leagues';
+import { TeamCrest } from './TeamCrest';
+import { MatchListSkeleton } from './Skeleton';
+import { SearchIcon, StarIcon } from './icons';
 import styles from './MatchList.module.css';
 
 interface Props {
@@ -92,14 +95,26 @@ export function MatchList({
       );
   }, [filtered, followedTeams]);
 
-  if (loading) return <div className={styles.state}>Loading matches…</div>;
+  const liveCount = useMemo(
+    () => filtered.filter((m) => m.status === 'live').length,
+    [filtered]
+  );
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader title={title} subtitle="Fetching today's fixtures…" />
+        <MatchListSkeleton />
+      </>
+    );
+  }
 
   if (error) {
     return (
       <div className={`${styles.state} ${styles.error}`}>
-        {error}
+        <p className={styles.stateText}>{error}</p>
         <button className={styles.retry} type="button" onClick={reload}>
-          Retry
+          Try again
         </button>
       </div>
     );
@@ -107,27 +122,52 @@ export function MatchList({
 
   return (
     <>
-      <div className={styles.header}>
-        <div>
-          <h2 className={styles.title}>{title}</h2>
-          <p className={styles.subtitle}>
-            {filtered.length} {filtered.length === 1 ? 'match' : 'matches'} in{' '}
-            {groups.length} {groups.length === 1 ? 'league' : 'leagues'}
-            {data?.cached ? ' · cached' : ''}
-          </p>
-        </div>
-        <input
-          className={styles.search}
-          type="search"
-          placeholder="Filter by team or league"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Filter matches"
-        />
-      </div>
+      <PageHeader
+        title={title}
+        subtitle={
+          <>
+            {liveCount > 0 && (
+              <span className={styles.livePill}>
+                <span className={styles.livePillDot} aria-hidden="true" />
+                {liveCount} live
+              </span>
+            )}
+            <span>
+              {filtered.length} {filtered.length === 1 ? 'match' : 'matches'} across{' '}
+              {groups.length} {groups.length === 1 ? 'league' : 'leagues'}
+              {data?.cached ? ' · cached' : ''}
+            </span>
+          </>
+        }
+        search={
+          <div className={styles.searchWrap}>
+            <SearchIcon size={16} className={styles.searchIcon} />
+            <input
+              className={styles.search}
+              type="search"
+              placeholder="Search team or league"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Filter matches"
+            />
+          </div>
+        }
+      />
 
       {filtered.length === 0 ? (
-        <div className={styles.state}>{query ? 'No matches match that filter.' : emptyMessage}</div>
+        <div className={styles.state}>
+          <p className={styles.stateTitle}>
+            {query ? 'Nothing matches that search' : 'Nothing on right now'}
+          </p>
+          <p className={styles.stateText}>
+            {query ? `No team or league matches “${query.trim()}”.` : emptyMessage}
+          </p>
+          {query && (
+            <button className={styles.retry} type="button" onClick={() => setQuery('')}>
+              Clear search
+            </button>
+          )}
+        </div>
       ) : (
         <div className={styles.groups}>
           {groups.map((group, i) => (
@@ -148,6 +188,10 @@ export function MatchList({
                     match={m}
                     isSaved={savedIds.has(m.matchId)}
                     onToggleSave={onToggleSave}
+                    isFollowed={
+                      !!followedTeams &&
+                      (followedTeams.has(m.homeTeam) || followedTeams.has(m.awayTeam))
+                    }
                   />
                 ))}
               </ul>
@@ -159,36 +203,86 @@ export function MatchList({
   );
 }
 
+function PageHeader({
+  title,
+  subtitle,
+  search,
+}: {
+  title: string;
+  subtitle: React.ReactNode;
+  search?: React.ReactNode;
+}) {
+  return (
+    <div className={styles.header}>
+      <div className={styles.headerText}>
+        <h2 className={styles.title}>{title}</h2>
+        <p className={styles.subtitle}>{subtitle}</p>
+      </div>
+      {search}
+    </div>
+  );
+}
+
 function MatchRow({
   match,
   isSaved,
+  isFollowed,
   onToggleSave,
 }: {
   match: MatchSummary;
   isSaved: boolean;
+  isFollowed: boolean;
   onToggleSave: (matchId: string) => void;
 }) {
   const label = `${match.homeTeam} v ${match.awayTeam}`;
+  const isLive = match.status === 'live';
+  const finished = match.status === 'finished';
+  // Dim the loser's name once a result stands, the way a printed table would.
+  const homeLead = finished && match.homeScore > match.awayScore;
+  const awayLead = finished && match.awayScore > match.homeScore;
+  const drawn = finished && match.homeScore === match.awayScore;
 
   return (
-    <li className={styles.row}>
+    <li className={`${styles.row} ${isLive ? styles.rowLive : ''}`}>
       <a className={styles.link} href={href(`/match/${encodeURIComponent(match.matchId)}`)}>
-        <div>
-          <div className={styles.teams}>{label}</div>
-          <div className={styles.meta}>
-            <span className={match.status === 'live' ? styles.minute : styles.finished}>
-              {match.status === 'live'
-                ? `${match.minute}'`
-                : match.status === 'finished'
-                  ? 'FT'
-                  : '—'}
+        <div className={styles.statusRail}>
+          {isLive ? (
+            <>
+              <span className={styles.minute}>{match.minute}&apos;</span>
+              <span className={styles.liveTag}>
+                <span className={styles.liveDot} aria-hidden="true" />
+                Live
+              </span>
+            </>
+          ) : (
+            <span className={finished ? styles.ft : styles.pending}>
+              {finished ? 'FT' : '—'}
+            </span>
+          )}
+        </div>
+
+        <div className={styles.teams}>
+          <div className={styles.teamLine}>
+            <TeamCrest team={match.homeTeam} size={22} />
+            <span className={`${styles.teamName} ${homeLead || drawn ? styles.won : ''}`}>
+              {match.homeTeam}
+            </span>
+            <span className={`${styles.teamScore} ${homeLead || drawn ? styles.won : ''}`}>
+              {match.homeScore}
+            </span>
+          </div>
+          <div className={styles.teamLine}>
+            <TeamCrest team={match.awayTeam} size={22} />
+            <span className={`${styles.teamName} ${awayLead || drawn ? styles.won : ''}`}>
+              {match.awayTeam}
+            </span>
+            <span className={`${styles.teamScore} ${awayLead || drawn ? styles.won : ''}`}>
+              {match.awayScore}
             </span>
           </div>
         </div>
-        <div className={styles.score}>
-          {match.homeScore}–{match.awayScore}
-        </div>
       </a>
+
       <button
         type="button"
         className={`${styles.saveBtn} ${isSaved ? styles.saved : ''}`}
@@ -197,8 +291,10 @@ function MatchRow({
         aria-label={isSaved ? `Unsave ${label}` : `Save ${label}`}
         title={isSaved ? 'Saved' : 'Save match'}
       >
-        {isSaved ? '★' : '☆'}
+        <StarIcon size={17} filled={isSaved} />
       </button>
+
+      {isFollowed && <span className={styles.followedEdge} aria-hidden="true" />}
     </li>
   );
 }

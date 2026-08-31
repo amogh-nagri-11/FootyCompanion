@@ -1,130 +1,260 @@
 .shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
+/* Sticky and translucent: the score you are reading stays put while the list
+   scrolls underneath it. */
 .topbar {
-  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--scrim);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--border);
-  padding: 10px 16px 0;
+  padding: 0 16px;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .topbar {
+    background: var(--surface);
+  }
 }
 
 .topRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  max-width: 1000px;
+  gap: 14px;
+  height: 56px;
+  max-width: 1080px;
   margin: 0 auto;
 }
 
-/* Horizontal scroll rather than wrapping: five items must stay on one line on
-   a narrow phone without pushing the score below the fold. */
-.nav {
+.brand {
   display: flex;
-  gap: 2px;
-  max-width: 1000px;
-  margin: 6px auto 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  color: inherit;
+  text-decoration: none;
 }
 
-.nav::-webkit-scrollbar {
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: linear-gradient(150deg, var(--brand), var(--brand-hover));
+  color: var(--brand-contrast);
+  box-shadow: var(--shadow-sm);
+}
+
+.brandName {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.nav {
   display: none;
+  gap: 2px;
+  margin-right: auto;
 }
 
 .navLink {
   flex: none;
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 7px 13px;
+  border-radius: var(--radius-full);
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
   white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 .navLink:hover {
   color: var(--text);
+  background: var(--surface-hover);
 }
 
 .navLinkActive {
   composes: navLink;
-  color: var(--home);
-  border-bottom-color: var(--home);
-}
-
-.brand {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: inherit;
-  text-decoration: none;
+  color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .account {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
+  margin-left: auto;
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.iconBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .accountLink {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
   text-decoration: none;
   color: inherit;
-  border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  border-radius: var(--radius-full);
+  padding: 3px 10px 3px 3px;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 
 .accountLink:hover {
-  background: var(--draw-soft);
+  background: var(--surface-hover);
 }
 
 .email {
-  font-size: 12px;
+  display: none;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 34vw;
+  max-width: 160px;
 }
 
 .signOut {
+  display: none;
   flex: none;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
-  border-radius: var(--radius-sm);
-  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  padding: 6px 13px;
   font-size: 13px;
   font-weight: 600;
+  transition: background-color var(--dur-fast) var(--ease);
 }
 
 .signOut:hover {
-  background: var(--draw-soft);
+  background: var(--surface-hover);
 }
 
 .main {
   flex: 1;
   width: 100%;
-  max-width: 1000px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 16px calc(var(--tabbar-h) + 24px);
+}
+
+/* Bottom tab bar — phones only. */
+.tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 30;
+  display: flex;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--scrim);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--border);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .tabbar {
+    background: var(--surface);
+  }
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 0 2px;
+  color: var(--text-faint);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.tab:active {
+  color: var(--text-muted);
+}
+
+.tabActive {
+  composes: tab;
+  color: var(--brand);
+}
+
+/* Truncate rather than overlap: "Following" is the widest label and a 320px
+   phone leaves each tab only 64px. */
+.tabLabel {
+  max-width: 100%;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .booting {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 14px;
   color: var(--text-faint);
   font-size: 13px;
+}
+
+.bootMark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius);
+  background: linear-gradient(150deg, var(--brand), var(--brand-hover));
+  color: var(--brand-contrast);
+  box-shadow: var(--shadow-lg);
+  animation: bootPulse 1.6s var(--ease) infinite;
+}
+
+@keyframes bootPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.92);
+    opacity: 0.72;
+  }
 }
 
 .fatal {
@@ -132,7 +262,7 @@
   margin: 60px auto;
   padding: 20px;
   background: var(--danger-soft);
-  border: 1px solid #f5c6c2;
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius);
   color: var(--danger);
   font-size: 14px;
@@ -142,16 +272,30 @@
   font-size: 13px;
 }
 
-@media (min-width: 560px) {
+@media (min-width: 720px) {
   .topbar {
-    padding: 12px 24px 0;
+    padding: 0 24px;
+  }
+
+  .topRow {
+    height: 60px;
+  }
+
+  .nav {
+    display: flex;
+  }
+
+  .email,
+  .signOut {
+    display: block;
+  }
+
+  /* The header nav takes over, so the tab bar and its clearance both go. */
+  .tabbar {
+    display: none;
   }
 
   .main {
-    padding: 24px;
-  }
-
-  .email {
-    max-width: 260px;
+    padding: 24px 24px 48px;
   }
 }

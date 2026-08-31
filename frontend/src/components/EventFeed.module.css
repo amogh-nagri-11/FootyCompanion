@@ -1,30 +1,33 @@
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
 }
 
 .heading {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .count {
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -32,81 +35,138 @@
 .list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 6px 0;
 }
 
+/* The timeline rail: one continuous line behind the nodes, drawn per row so it
+   scrolls with the list and stops cleanly at the first and last event. */
 .item {
+  position: relative;
   display: grid;
-  grid-template-columns: 44px 22px 1fr;
+  grid-template-columns: 38px 30px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
+  padding: 11px 18px;
 }
 
-.item:last-child {
-  border-bottom: 0;
+.item::before {
+  content: '';
+  position: absolute;
+  left: calc(18px + 38px + 10px + 15px);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-1px);
+  background: var(--border);
+}
+
+.item:first-child::before {
+  top: 18px;
+}
+
+.item:last-child::before {
+  bottom: calc(100% - 18px);
 }
 
 /* Fades the row in on arrival and lets a soft wash drain away, so a new event
    catches the eye without the feed becoming a light show. */
 .fresh {
-  animation: arrive 4s ease-out;
+  animation: arrive 4s var(--ease);
 }
 
 @keyframes arrive {
   0% {
-    background: var(--home-soft);
+    background: var(--brand-soft);
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-6px);
   }
   12% {
     opacity: 1;
     transform: none;
   }
   55% {
-    background: var(--home-soft);
+    background: var(--brand-soft);
   }
   100% {
     background: transparent;
   }
 }
 
-.minute {
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  padding-top: 1px;
+.itemGoal {
+  background: linear-gradient(90deg, var(--brand-soft), transparent 70%);
 }
 
-.icon {
+.minute {
+  padding-top: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.nodeGoal {
+  composes: node;
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  font-size: 14px;
+}
+
+.nodeCard {
+  composes: node;
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  font-size: 12px;
+}
+
+.nodeSub {
+  composes: node;
+  border-color: color-mix(in srgb, var(--home) 40%, var(--border));
+  color: var(--home);
   font-size: 15px;
-  line-height: 1.35;
-  text-align: center;
+  font-weight: 700;
 }
 
 .body {
   min-width: 0;
+  padding-top: 3px;
 }
 
 .detail {
   font-size: 14px;
+  font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.itemGoal .detail {
+  font-weight: 700;
 }
 
 .meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin-top: 3px;
   font-size: 12px;
   color: var(--text-muted);
 }
 
 .team {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .homeTeam {
@@ -121,25 +181,56 @@
 
 .type {
   color: var(--text-faint);
-  text-transform: capitalize;
+}
+
+.type::before {
+  content: '·';
+  margin-right: 7px;
 }
 
 .newBadge {
   margin-left: auto;
   flex: none;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--home);
-  background: var(--home-soft);
-  border-radius: 3px;
-  padding: 1px 5px;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-radius: var(--radius-full);
+  padding: 2px 7px;
 }
 
 .empty {
-  padding: 28px 18px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 40px 20px 44px;
   text-align: center;
-  color: var(--text-faint);
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  font-size: 18px;
+  filter: grayscale(1);
+  opacity: 0.75;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.emptyText {
+  margin: 0;
+  max-width: 34ch;
   font-size: 13px;
+  color: var(--text-faint);
 }

@@ -4,6 +4,8 @@ import { EventFeed } from './EventFeed';
 import { Scoreboard } from './Scoreboard';
 import { WinProbabilityBar } from './WinProbabilityBar';
 import { FplPanel } from './FplPanel';
+import { TeamCrest } from './TeamCrest';
+import { ChevronLeftIcon, HeartIcon, StarIcon } from './icons';
 import styles from './MatchView.module.css';
 
 interface Props {
@@ -12,6 +14,28 @@ interface Props {
   followedTeams: Set<string>;
   onToggleSave: (matchId: string) => void;
   onToggleFollow: (teamName: string) => void;
+}
+
+function Placeholder({
+  title,
+  text,
+  spinner,
+}: {
+  title: string;
+  text: string;
+  spinner?: boolean;
+}) {
+  return (
+    <div className={styles.placeholder}>
+      {spinner && <span className={styles.bigSpinner} aria-hidden="true" />}
+      <p className={styles.placeholderTitle}>{title}</p>
+      <p className={styles.placeholderText}>{text}</p>
+      <a className={styles.back} href={href('/')}>
+        <ChevronLeftIcon size={15} />
+        All matches
+      </a>
+    </div>
+  );
 }
 
 export function MatchView({
@@ -28,31 +52,25 @@ export function MatchView({
   // single status panel rather than an empty scoreboard.
   if (!state) {
     if (status === 'error') {
-      return (
-        <div className={styles.placeholder}>
-          <p className={styles.placeholderTitle}>Could not load the match</p>
-          <p className={styles.placeholderText}>{error}</p>
-        </div>
-      );
+      return <Placeholder title="Could not load the match" text={error ?? 'The live feed is unavailable.'} />;
     }
 
     if (status === 'connecting') {
       return (
-        <div className={styles.placeholder}>
-          <p className={styles.placeholderTitle}>Connecting…</p>
-          <p className={styles.placeholderText}>Opening the live feed for match {matchId}.</p>
-        </div>
+        <Placeholder
+          spinner
+          title="Connecting…"
+          text={`Opening the live feed for match ${matchId}.`}
+        />
       );
     }
 
     return (
-      <div className={styles.placeholder}>
-        <p className={styles.placeholderTitle}>Waiting for match data…</p>
-        <p className={styles.placeholderText}>
-          Connected to match {matchId}. The score will appear as soon as the first events
-          come through.
-        </p>
-      </div>
+      <Placeholder
+        spinner
+        title="Waiting for match data…"
+        text={`Connected to match ${matchId}. The score will appear as soon as the first events come through.`}
+      />
     );
   }
 
@@ -60,65 +78,73 @@ export function MatchView({
     <>
       <div className={styles.actions}>
         <a className={styles.back} href={href('/')}>
-          ← All matches
+          <ChevronLeftIcon size={15} />
+          All matches
         </a>
         <div className={styles.actionButtons}>
-          {[state.homeTeam, state.awayTeam].map((team) => (
-            <button
-              key={team}
-              type="button"
-              className={followedTeams.has(team) ? styles.actionOn : styles.action}
-              onClick={() => onToggleFollow(team)}
-              aria-pressed={followedTeams.has(team)}
-            >
-              {followedTeams.has(team) ? '✓ Following' : 'Follow'} {team}
-            </button>
-          ))}
+          {[state.homeTeam, state.awayTeam].map((team) => {
+            const on = followedTeams.has(team);
+            return (
+              <button
+                key={team}
+                type="button"
+                className={on ? styles.actionOn : styles.action}
+                onClick={() => onToggleFollow(team)}
+                aria-pressed={on}
+                title={on ? `Unfollow ${team}` : `Follow ${team}`}
+              >
+                <TeamCrest team={team} size={16} />
+                <span className={styles.actionLabel}>{team}</span>
+                <HeartIcon size={14} />
+              </button>
+            );
+          })}
           <button
             type="button"
             className={isSaved ? styles.actionOn : styles.action}
             onClick={() => onToggleSave(matchId)}
             aria-pressed={isSaved}
           >
-            {isSaved ? '★ Saved' : '☆ Save match'}
+            <StarIcon size={14} filled={isSaved} />
+            <span className={styles.actionLabel}>{isSaved ? 'Saved' : 'Save'}</span>
           </button>
         </div>
       </div>
 
       <div className={styles.layout}>
-      {status === 'connecting' && (
-        <div className={`${styles.banner} ${styles.bannerSlot}`} role="status">
-          <span className={styles.spinner} aria-hidden="true" />
-          <span>Reconnecting to the live feed…</span>
-        </div>
-      )}
-      {status === 'ended' && (
-        <div className={`${styles.bannerEnded} ${styles.bannerSlot}`} role="status">
-          <span aria-hidden="true">🏁</span>
-          <span>Match ended — this is the final score.</span>
-        </div>
-      )}
-      {status === 'error' && (
-        <div className={`${styles.bannerError} ${styles.bannerSlot}`} role="alert">
-          <span>{error} Showing the last data received.</span>
-        </div>
-      )}
+        {status === 'connecting' && (
+          <div className={`${styles.banner} ${styles.bannerSlot}`} role="status">
+            <span className={styles.spinner} aria-hidden="true" />
+            <span>Reconnecting to the live feed…</span>
+          </div>
+        )}
+        {status === 'ended' && (
+          <div className={`${styles.bannerEnded} ${styles.bannerSlot}`} role="status">
+            <span aria-hidden="true">🏁</span>
+            <span>Match ended — this is the final score.</span>
+          </div>
+        )}
+        {status === 'error' && (
+          <div className={`${styles.bannerError} ${styles.bannerSlot}`} role="alert">
+            <span>{error} Showing the last data received.</span>
+          </div>
+        )}
 
-      <div className={styles.boardSlot}>
-        <Scoreboard state={state} ended={status === 'ended'} />
-      </div>
+        <div className={styles.boardSlot}>
+          <Scoreboard state={state} ended={status === 'ended'} />
+        </div>
 
-      {/* Both side panels share one grid area so they stack directly under one
-          another; as separate areas the tall feed spanning two rows pushed the
-          FPL panel down to the feed's midpoint. */}
-      <div className={styles.sideSlot}>
-        {winProb && <WinProbabilityBar winProb={winProb} state={state} />}
-        <FplPanel squad={squad} alerts={fplAlerts} fplLinked={fplLinked} />
-      </div>
+        {/* Both side panels share one grid area so they stack directly under one
+            another; as separate areas the tall feed spanning two rows pushed the
+            FPL panel down to the feed's midpoint. */}
+        <div className={styles.sideSlot}>
+          {winProb && <WinProbabilityBar winProb={winProb} state={state} />}
+          <FplPanel squad={squad} alerts={fplAlerts} fplLinked={fplLinked} />
+        </div>
 
-      <div className={styles.feedSlot}>
-        <EventFeed events={events} freshEventIds={freshEventIds} state={state} />
-      </div>
+        <div className={styles.feedSlot}>
+          <EventFeed events={events} freshEventIds={freshEventIds} state={state} />
+        </div>
       </div>
     </>
   );

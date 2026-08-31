@@ -3,6 +3,7 @@ import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
 import type { ArchivedMatch } from '../types';
 import { EventFeed } from './EventFeed';
+import { ChevronLeftIcon } from './icons';
 import styles from './Screens.module.css';
 
 const NO_HIGHLIGHTS = new Set<string>();
@@ -22,7 +23,8 @@ export function ArchiveMatchScreen({ matchId }: { matchId: string }) {
   return (
     <>
       <a className={styles.back} href={href('/archive')}>
-        ← Back to archive
+        <ChevronLeftIcon size={15} />
+        Back to archive
       </a>
 
       <h2 className={styles.title}>

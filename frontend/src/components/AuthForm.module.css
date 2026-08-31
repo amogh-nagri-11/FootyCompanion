@@ -1,39 +1,84 @@
 .page {
+  position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
+  overflow: hidden;
+}
+
+/* Two soft brand-tinted washes behind the card. Enough atmosphere that the
+   sign-in screen doesn't read as an unstyled form, at no layout cost. */
+.page::before,
+.page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.page::before {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -110px;
+  background: var(--brand);
+}
+
+.page::after {
+  width: 380px;
+  height: 380px;
+  right: -130px;
+  bottom: -140px;
+  background: var(--home);
 }
 
 .card {
+  position: relative;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   background: var(--surface);
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 30px 26px 26px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
   border-radius: var(--radius);
-  padding: 28px 24px;
+  background: linear-gradient(150deg, var(--brand), var(--brand-hover));
+  color: var(--brand-contrast);
+  box-shadow: var(--shadow);
 }
 
 .brand {
-  margin: 0 0 2px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin: 0 0 3px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .tagline {
   margin: 0 0 22px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .tabs {
   display: flex;
   gap: 4px;
-  background: var(--draw-soft);
-  border-radius: var(--radius-sm);
-  padding: 3px;
+  background: var(--surface-hover);
+  border-radius: var(--radius-full);
+  padding: 4px;
   margin-bottom: 20px;
 }
 
@@ -41,17 +86,18 @@
   flex: 1;
   border: 0;
   background: transparent;
-  border-radius: 4px;
-  padding: 7px 8px;
+  border-radius: var(--radius-full);
+  padding: 8px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 .tab[aria-selected='true'] {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 2px rgb(20 24 29 / 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .field {
@@ -61,23 +107,29 @@
 .label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .input {
   width: 100%;
-  padding: 9px 11px;
+  padding: 11px 13px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.input::placeholder {
+  color: var(--text-faint);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--home);
-  box-shadow: 0 0 0 3px var(--home-soft);
+  border-color: var(--brand);
+  box-shadow: var(--ring);
 }
 
 .passwordWrap {
@@ -86,51 +138,58 @@
 }
 
 .passwordWrap .input {
-  padding-right: 60px;
+  padding-right: 64px;
 }
 
 .reveal {
   position: absolute;
-  right: 4px;
+  right: 5px;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
   background: transparent;
   color: var(--text-muted);
   font-size: 12px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: 4px;
+  font-weight: 700;
+  padding: 6px 9px;
+  border-radius: var(--radius-full);
 }
 
 .reveal:hover {
   color: var(--text);
-  background: var(--draw-soft);
+  background: var(--surface-hover);
 }
 
 .submit {
   width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
+  margin-top: 8px;
+  padding: 12px;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--home);
-  color: #fff;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-size: 14.5px;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .submit:hover:not(:disabled) {
-  background: #1a43b8;
+  background: var(--brand-hover);
+}
+
+.submit:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .submit:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .message {
   margin: 0 0 14px;
-  padding: 9px 11px;
+  padding: 10px 13px;
   border-radius: var(--radius-sm);
   font-size: 13px;
 }
@@ -138,17 +197,17 @@
 .error {
   background: var(--danger-soft);
   color: var(--danger);
-  border: 1px solid #f5c6c2;
+  border: 1px solid var(--danger-border);
 }
 
 .notice {
-  background: var(--home-soft);
-  color: #1a3a8f;
-  border: 1px solid #c5d5f7;
+  background: var(--brand-soft);
+  color: var(--brand);
+  border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
 }
 
 .hint {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   font-size: 12px;
   color: var(--text-faint);
   text-align: center;
