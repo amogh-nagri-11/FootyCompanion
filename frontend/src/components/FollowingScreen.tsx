@@ -69,6 +69,7 @@ export function FollowingScreen({ teams, savedIds, onToggleSave, onToggleFollow 
           <MatchList
             key="following"
             title="Live now"
+            upcomingTitle="Next up"
             emptyMessage="None of the teams you follow are playing right now."
             onlyTeams={teams}
             savedIds={savedIds}

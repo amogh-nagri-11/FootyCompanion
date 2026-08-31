@@ -65,7 +65,12 @@ export interface MatchSummary {
   status: MatchStatus;
   league: string | null;
   country: string | null;
+  /** Kickoff time (ISO). Present for upcoming fixtures. */
+  kickoff?: string | null;
 }
+
+/** Which list `/matches/live` returned: what is in play, or the next kickoffs. */
+export type FixtureKind = 'live' | 'upcoming';
 
 export interface Profile {
   id: string;

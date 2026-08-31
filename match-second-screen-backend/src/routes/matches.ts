@@ -1,12 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { requireAuth } from '../httpAuth.js';
-import { getLiveFixtures } from '../services/matchList.js';
+import { getFixtures } from '../services/matchList.js';
 
 export async function matchRoutes(app: FastifyInstance) {
   app.get('/matches/live', { preHandler: requireAuth }, async (req, reply) => {
     try {
-      const { matches, cached } = await getLiveFixtures();
-      return { matches, cached };
+      // `kind` is "upcoming" when nothing is in play and the list has fallen
+      // back to the next kickoffs, so the client can label the screen.
+      const { matches, cached, kind } = await getFixtures();
+      return { matches, cached, kind };
     } catch (err) {
       app.log.error(err);
       return reply.code(502).send({

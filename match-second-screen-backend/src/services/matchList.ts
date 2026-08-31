@@ -1,22 +1,50 @@
 import { redis } from '../redis.js';
-import { fetchLiveFixtures, MatchSummary } from './sportsApi.js';
+import { fetchLiveFixtures, fetchUpcomingFixtures, MatchSummary } from './sportsApi.js';
 
-const CACHE_KEY = 'matches:live';
+const LIVE_KEY = 'matches:live';
+const UPCOMING_KEY = 'matches:upcoming';
+
 // The list screen is hit on every page load and each miss costs one upstream
 // request against a 100/day quota, so serve a short-lived shared snapshot
 // rather than calling the API per viewer.
-const CACHE_TTL_SECONDS = 60;
+const LIVE_TTL_SECONDS = 60;
+// Kickoff times barely move, and this list is only fetched when nothing is in
+// play, so it can be cached far longer than the live one. The fallback costs up
+// to two upstream calls, which at 60s would be the whole daily quota by teatime.
+const UPCOMING_TTL_SECONDS = 900;
 
-export async function getLiveFixtures(): Promise<{
+/** Which list the client is looking at, so it can label the screen. */
+export type FixtureKind = 'live' | 'upcoming';
+
+export interface FixtureList {
   matches: MatchSummary[];
   cached: boolean;
-}> {
-  const hit = await redis.get(CACHE_KEY);
-  if (hit) {
-    return { matches: JSON.parse(hit) as MatchSummary[], cached: true };
-  }
+  kind: FixtureKind;
+}
 
-  const matches = await fetchLiveFixtures();
-  await redis.set(CACHE_KEY, JSON.stringify(matches), 'EX', CACHE_TTL_SECONDS);
+async function cached(
+  key: string,
+  ttl: number,
+  load: () => Promise<MatchSummary[]>
+): Promise<{ matches: MatchSummary[]; cached: boolean }> {
+  const hit = await redis.get(key);
+  if (hit) return { matches: JSON.parse(hit) as MatchSummary[], cached: true };
+
+  const matches = await load();
+  await redis.set(key, JSON.stringify(matches), 'EX', ttl);
   return { matches, cached: false };
+}
+
+/**
+ * Live fixtures, falling back to the next kickoffs when nothing is in play —
+ * an empty screen is the one state that makes the app look broken rather than
+ * quiet. The empty live result is still cached, so the fallback does not turn
+ * every page load into two upstream calls.
+ */
+export async function getFixtures(): Promise<FixtureList> {
+  const live = await cached(LIVE_KEY, LIVE_TTL_SECONDS, fetchLiveFixtures);
+  if (live.matches.length > 0) return { ...live, kind: 'live' };
+
+  const upcoming = await cached(UPCOMING_KEY, UPCOMING_TTL_SECONDS, fetchUpcomingFixtures);
+  return { ...upcoming, kind: 'upcoming' };
 }
