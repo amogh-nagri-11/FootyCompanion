@@ -243,13 +243,21 @@ SQL lives in `db/migrations/`, applied by hand against the Supabase project
 
 | File | What it does | Status |
 | --- | --- | --- |
-| `001_profile_fields.sql` | FPL team id, display name, bio, avatar, favourite club, case-insensitive username uniqueness | **not yet applied** |
-| `002_authenticated_grants.sql` | Optional: grants that make RLS the enforcing layer again | not applied |
-| `003_match_turning_point.sql` | `match_archive.turning_point` jsonb + an index for sorting by most dramatic match | **not yet applied** |
+| `001_profile_fields.sql` | FPL team id, display name, bio, avatar, favourite club, case-insensitive username uniqueness | applied 2026-08-31 |
+| `002_authenticated_grants.sql` | Optional: grants that make RLS the enforcing layer again | **not applied** (see below) |
+| `003_match_turning_point.sql` | `match_archive.turning_point` jsonb + an index for sorting by most dramatic match | applied 2026-08-31 |
 
-Until `001` runs the app degrades rather than breaking: the profile screen shows
-a migration banner, extended fields report which values could not be stored, and
-FPL linking reports no team. Username, follows, saves and the archive all work.
+`002` is deliberately left unapplied. It is only half a change: granting the
+`authenticated` role DML does nothing on its own while `requireAuth` in
+`httpAuth.ts` still uses the service-role client, so it alters the security
+posture without yet moving enforcement into the database. Apply it together with
+that switch, not before.
+
+The app degrades rather than breaking when a migration is outstanding: the
+profile screen shows a banner, extended fields report which values could not be
+stored, FPL linking reports no team, and finished matches still archive with the
+turning point dropped. Username, follows, saves and the archive keep working
+throughout.
 
 ## Profile
 
