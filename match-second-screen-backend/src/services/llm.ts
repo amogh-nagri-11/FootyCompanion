@@ -11,8 +11,21 @@ import { config } from '../config.js';
 
 export type LlmProvider = 'groq' | 'gemini' | 'none';
 
+/** One turn of a conversation. The system prompt is passed separately. */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Groq retires hosted models on its own schedule and a decommissioned id fails
+// every call with a 400, so treat these as a starting point rather than a
+// fixture: `LLM_MODEL` overrides without a code change, and
+// `curl -sH "Authorization: Bearer $GROQ_API_KEY" \
+//   https://api.groq.com/openai/v1/models | jq -r '.data[].id'`
+// lists what the key can currently reach.
 const DEFAULT_MODELS: Record<Exclude<LlmProvider, 'none'>, string> = {
-  groq: 'llama-3.3-70b-versatile',
+  // Groq namespaces this one — the bare 'gpt-oss-120b' is rejected as unknown.
+  groq: 'openai/gpt-oss-120b',
   gemini: 'gemini-2.0-flash',
 };
 
@@ -27,7 +40,12 @@ function modelFor(provider: Exclude<LlmProvider, 'none'>): string {
   return config.llmModel || DEFAULT_MODELS[provider];
 }
 
-async function callGroq(system: string, user: string, maxTokens: number): Promise<string> {
+async function callGroq(
+  system: string,
+  turns: ChatMessage[],
+  maxTokens: number
+): Promise<string> {
+  const groqModel = modelFor('groq');
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -35,30 +53,56 @@ async function callGroq(system: string, user: string, maxTokens: number): Promis
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: modelFor('groq'),
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
+      model: groqModel,
+      messages: [{ role: 'system', content: system }, ...turns],
       max_tokens: maxTokens,
       temperature: 0.7,
+      // Reasoning tokens are billed against max_tokens, and at the default
+      // effort gpt-oss spends most of the budget thinking — a 400-token cap
+      // left ~100 for prose and truncated the report mid-sentence. Summarising
+      // a supplied event log needs no deliberation, so keep it minimal. Only
+      // the reasoning models accept the field; others reject it outright.
+      ...(/gpt-oss/.test(groqModel) ? { reasoning_effort: 'low' } : {}),
     }),
     signal: AbortSignal.timeout(config.llmTimeoutMs),
   });
 
   if (!res.ok) {
-    throw new Error(`Groq request failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+    const body = (await res.text()).slice(0, 300);
+    // A retired model is the one failure that looks identical to "no provider
+    // configured" from the outside — every summary quietly reverts to the
+    // template — so name it rather than leaving it in a generic 400.
+    if (res.status === 400 && /decommission|does not exist|not found/i.test(body)) {
+      throw new Error(
+        `Groq model '${groqModel}' is unavailable (retired or misspelled). ` +
+          `Set LLM_MODEL to a current id; list them with: ` +
+          `curl -sH "Authorization: Bearer $GROQ_API_KEY" https://api.groq.com/openai/v1/models`
+      );
+    }
+    throw new Error(`Groq request failed (${res.status}): ${body}`);
   }
 
   const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
   };
-  const text = data.choices?.[0]?.message?.content?.trim();
+  const choice = data.choices?.[0];
+  const text = choice?.message?.content?.trim();
   if (!text) throw new Error('Groq returned no content');
+  // A summary cut off mid-sentence reads worse than the templated one, so treat
+  // it as a failure and let the caller fall back rather than publishing it.
+  if (choice?.finish_reason === 'length') {
+    throw new Error(
+      `Groq response hit the ${maxTokens}-token cap and was truncated (model '${groqModel}')`
+    );
+  }
   return text;
 }
 
-async function callGemini(system: string, user: string, maxTokens: number): Promise<string> {
+async function callGemini(
+  system: string,
+  turns: ChatMessage[],
+  maxTokens: number
+): Promise<string> {
   const model = modelFor('gemini');
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
@@ -70,7 +114,11 @@ async function callGemini(system: string, user: string, maxTokens: number): Prom
       },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
+        // Gemini names the assistant role 'model'; everything else maps across.
+        contents: turns.map((t) => ({
+          role: t.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: t.content }],
+        })),
         generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
       }),
       signal: AbortSignal.timeout(config.llmTimeoutMs),
@@ -102,18 +150,30 @@ export async function generateText(
   user: string,
   maxTokens = 500
 ): Promise<string | null> {
+  return generateChat(system, [{ role: 'user', content: user }], maxTokens);
+}
+
+/**
+ * Multi-turn variant. Returns null on the same terms as `generateText`.
+ *
+ * `turns` must end with a user message — every provider here expects the last
+ * turn to be the one it is answering.
+ */
+export async function generateChat(
+  system: string,
+  turns: ChatMessage[],
+  maxTokens = 500
+): Promise<string | null> {
   const provider = activeProvider();
   if (provider === 'none') return null;
+  if (turns.length === 0) return null;
 
   try {
     return provider === 'groq'
-      ? await callGroq(system, user, maxTokens)
-      : await callGemini(system, user, maxTokens);
+      ? await callGroq(system, turns, maxTokens)
+      : await callGemini(system, turns, maxTokens);
   } catch (err) {
-    console.error(
-      `LLM summary failed (${provider}):`,
-      err instanceof Error ? err.message : err
-    );
+    console.error(`LLM call failed (${provider}):`, err instanceof Error ? err.message : err);
     return null;
   }
 }

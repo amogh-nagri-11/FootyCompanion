@@ -31,7 +31,13 @@ export const config = {
   // every poll, so this only has to cover the gap between a match going quiet
   // and the set becoming safe to drop — not the length of a match.
   // Comma-separated list of browser origins allowed to call the REST routes.
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+  // Vite walks up a port when 5173 is taken (a second checkout, a stale dev
+  // server), so the default covers the next few or the app silently fails
+  // every REST call with a CORS error that surfaces as "could not reach".
+  corsOrigins: (
+    process.env.CORS_ORIGINS ??
+    'http://localhost:5173,http://localhost:5174,http://localhost:5175'
+  )
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean),
@@ -51,4 +57,10 @@ export const config = {
   // A hot retry loop against a failing API (bad key, exhausted quota) is worse
   // than going quiet, so give up on a match after this many consecutive errors.
   maxConsecutivePollFailures: positiveInt('MAX_CONSECUTIVE_POLL_FAILURES', 5),
+  // How many days either side of today the fixture browser may reach. The free
+  // API-Football plan serves only yesterday, today and tomorrow and rejects
+  // anything further with a plan error, so the date picker is capped here
+  // rather than letting the user walk into a guaranteed failure. Raise it on a
+  // paid plan — the code has no other opinion about the range.
+  fixtureDateWindowDays: positiveInt('FIXTURE_DATE_WINDOW_DAYS', 1),
 };
