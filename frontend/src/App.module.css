@@ -47,16 +47,16 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
-  background: linear-gradient(150deg, var(--brand), var(--brand-hover));
+  border-radius: var(--radius-xs);
+  /* Flat ink, no gradient: the mark should look stamped rather than lit. */
+  background: var(--brand);
   color: var(--brand-contrast);
-  box-shadow: var(--shadow-sm);
 }
 
 .brandName {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: var(--track-tight);
 }
 
 .nav {
@@ -84,8 +84,10 @@
 
 .navLinkActive {
   composes: navLink;
-  color: var(--brand);
-  background: var(--brand-soft);
+  /* Solid ink pill: the current section should be unmistakable at a glance,
+     which a tinted background never quite manages. */
+  color: var(--brand-contrast);
+  background: var(--brand);
 }
 
 .account {

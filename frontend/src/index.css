@@ -1,63 +1,82 @@
 /*
  * Design tokens.
  *
- * Two themes out of one set of names: the light palette lives on :root and
- * every dark override re-binds the same variables, so components never branch
- * on theme. `[data-theme]` (set by the header toggle) has to beat the media
- * query in both directions, which is why the dark rules are duplicated — once
- * guarded against an explicit light choice, once unconditional.
+ * One set of names, two themes: the light palette lives on :root and the dark
+ * override re-binds the same variables, so components never branch on theme.
+ *
+ * Light is the default and the only automatic theme — dark is opt-in through
+ * the header toggle, which stamps `data-theme="dark"` on <html>. There is
+ * deliberately no `prefers-color-scheme` rule: a reader on a dark OS should
+ * still land on the paper theme, and choose the other if they want it.
+ *
+ * The palette is ink on paper with a single hot accent. Primary actions are
+ * near-black rather than a colour — that is what keeps a bold page elegant
+ * instead of loud — and the accent is spent only on what is genuinely live.
  */
 :root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-sunken: #f7f8fa;
-  --surface-hover: #f1f3f6;
-  --border: #e4e7ec;
-  --border-strong: #cfd4dc;
+  /* Warm paper, not blue-grey: a page that reads as printed rather than as a
+     dimmed screen. */
+  --bg: #f1efea;
+  --surface: #fffefb;
+  --surface-sunken: #f7f5f0;
+  --surface-hover: #eae7e0;
+  --border: #e0dcd3;
+  --border-strong: #c7c1b5;
 
-  --text: #101828;
-  --text-muted: #5b6472;
-  --text-faint: #8a93a2;
+  --text: #14141a;
+  --text-muted: #5a5850;
+  --text-faint: #8b877e;
 
-  /* Brand: pitch green, used for primary actions and the live state alike.
-     One accent reads as a product; two read as a template. */
-  --brand: #067a4a;
-  --brand-hover: #05643d;
-  --brand-soft: #e4f4ec;
-  --brand-contrast: #ffffff;
+  /* Brand is ink. Buttons, the active nav pill and the focus ring all take it,
+     so the interface stays monochrome and the accent below means something. */
+  --brand: #17171f;
+  --brand-hover: #000000;
+  --brand-soft: #e7e4dc;
+  --brand-contrast: #fffefb;
 
-  --home: #2f5cd8;
-  --home-soft: #e8eefc;
-  --away: #c2410c;
-  --away-soft: #fdf0e8;
-  --draw: #98a2b3;
-  --draw-soft: #eef0f4;
+  /* Two team colours that stay apart for the colour-blind: deep indigo reads
+     darker than clay at every level, so the bars differ in value, not just hue. */
+  --home: #24357a;
+  --home-soft: #e6e8f4;
+  --away: #a9500f;
+  --away-soft: #f8ece0;
+  --draw: #9b968c;
+  --draw-soft: #eeebe4;
 
-  --live: #067a4a;
-  --live-soft: #e4f4ec;
-  --danger: #b42318;
-  --danger-soft: #fdeceb;
-  --danger-border: #f5c6c2;
-  --warning: #b54708;
-  --star: #d19c00;
+  /* The one hot colour in the product, reserved for live play. */
+  --live: #c8321f;
+  --live-soft: #fbe9e5;
+  --danger: #a92c1c;
+  --danger-soft: #fbe9e6;
+  --danger-border: #eec4bc;
+  --warning: #9a5b06;
+  --star: #ab7c06;
 
   /* Layered rather than one flat drop: cards should lift off the background
      without the page looking like it is made of stickers. */
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-lg: 0 12px 28px -8px rgba(16, 24, 40, 0.16), 0 4px 8px -4px rgba(16, 24, 40, 0.06);
-  --ring: 0 0 0 3px var(--brand-soft);
+  --shadow-sm: 0 1px 2px rgba(28, 24, 16, 0.05);
+  --shadow: 0 1px 3px rgba(28, 24, 16, 0.08), 0 1px 2px rgba(28, 24, 16, 0.04);
+  --shadow-lg: 0 14px 30px -10px rgba(28, 24, 16, 0.18), 0 4px 8px -4px rgba(28, 24, 16, 0.06);
+  --ring: 0 0 0 3px rgba(23, 23, 31, 0.16);
 
-  --radius-xs: 6px;
-  --radius-sm: 9px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  /* Squarer than before. Tight corners read as editorial; pill shapes are kept
+     for the things that genuinely are pills (tabs, chips, the day strip). */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
   --radius-full: 999px;
 
-  --scrim: rgba(255, 255, 255, 0.78);
+  --scrim: rgba(241, 239, 234, 0.82);
 
   --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+
+  /* Headline tracking. Large bold type at default spacing looks slack, so the
+     display sizes pull in and the small print pushes out. */
+  --track-display: -0.03em;
+  --track-tight: -0.015em;
+  --track-caps: 0.08em;
 
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --dur-fast: 120ms;
@@ -69,88 +88,47 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0b0d10;
-    --surface: #14171c;
-    --surface-sunken: #101317;
-    --surface-hover: #1c2028;
-    --border: #232830;
-    --border-strong: #333a45;
-
-    --text: #f2f4f7;
-    --text-muted: #98a2b3;
-    --text-faint: #6b7482;
-
-    --brand: #22c55e;
-    --brand-hover: #16a34a;
-    --brand-soft: #0f2a1d;
-    --brand-contrast: #05140c;
-
-    --home: #7aa2ff;
-    --home-soft: #16203a;
-    --away: #fb923c;
-    --away-soft: #2a1a10;
-    --draw: #6b7482;
-    --draw-soft: #1c2028;
-
-    --live: #22c55e;
-    --live-soft: #0f2a1d;
-    --danger: #f97066;
-    --danger-soft: #2a1414;
-    --danger-border: #4a2320;
-    --warning: #fdb022;
-    --star: #fac515;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 16px 32px -10px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.4);
-    --ring: 0 0 0 3px rgba(34, 197, 94, 0.28);
-
-    --scrim: rgba(11, 13, 16, 0.72);
-
-    color-scheme: dark;
-  }
-}
-
+/* Opt-in only — see the note above about prefers-color-scheme. */
 :root[data-theme='dark'] {
-  --bg: #0b0d10;
-  --surface: #14171c;
-  --surface-sunken: #101317;
-  --surface-hover: #1c2028;
-  --border: #232830;
-  --border-strong: #333a45;
+  --bg: #0b0b0e;
+  --surface: #15151a;
+  --surface-sunken: #101014;
+  --surface-hover: #1f1f26;
+  --border: #26262e;
+  --border-strong: #3a3a45;
 
-  --text: #f2f4f7;
-  --text-muted: #98a2b3;
-  --text-faint: #6b7482;
+  --text: #f4f2ec;
+  --text-muted: #a4a099;
+  --text-faint: #757168;
 
-  --brand: #22c55e;
-  --brand-hover: #16a34a;
-  --brand-soft: #0f2a1d;
-  --brand-contrast: #05140c;
+  /* Inverted: ink on paper becomes paper on ink, so primary actions stay the
+     highest-contrast thing on the page in both themes. */
+  --brand: #f4f2ec;
+  --brand-hover: #ffffff;
+  --brand-soft: #26262e;
+  --brand-contrast: #101014;
 
-  --home: #7aa2ff;
-  --home-soft: #16203a;
-  --away: #fb923c;
-  --away-soft: #2a1a10;
-  --draw: #6b7482;
-  --draw-soft: #1c2028;
+  --home: #93a4f0;
+  --home-soft: #1a1f38;
+  --away: #e8a05a;
+  --away-soft: #2c2013;
+  --draw: #757168;
+  --draw-soft: #1f1f26;
 
-  --live: #22c55e;
-  --live-soft: #0f2a1d;
-  --danger: #f97066;
-  --danger-soft: #2a1414;
-  --danger-border: #4a2320;
-  --warning: #fdb022;
-  --star: #fac515;
+  --live: #ff5f45;
+  --live-soft: #2e1410;
+  --danger: #f4715c;
+  --danger-soft: #2c1512;
+  --danger-border: #4d241d;
+  --warning: #e0a03c;
+  --star: #dcae35;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 16px 32px -10px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.4);
-  --ring: 0 0 0 3px rgba(34, 197, 94, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 32px -10px rgba(0, 0, 0, 0.75), 0 4px 10px -4px rgba(0, 0, 0, 0.45);
+  --ring: 0 0 0 3px rgba(244, 242, 236, 0.22);
 
-  --scrim: rgba(11, 13, 16, 0.72);
+  --scrim: rgba(11, 11, 14, 0.78);
 
   color-scheme: dark;
 }
@@ -173,6 +151,9 @@ body {
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.5;
+  /* Headings carry the weight in this design, so the text they sit against
+     wants the optical sizing and true small-caps Inter ships. */
+  font-feature-settings: 'cv05' 1, 'ss03' 1;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -200,8 +181,23 @@ select {
 }
 
 ::selection {
-  background: var(--brand-soft);
-  color: var(--text);
+  background: var(--brand);
+  color: var(--brand-contrast);
+}
+
+/* Headings are the loud element: heavy, tight, and never bigger than they
+   need to be. Set here so every screen inherits the same voice. */
+h1,
+h2,
+h3 {
+  letter-spacing: var(--track-display);
+  font-weight: 800;
+  line-height: 1.12;
+}
+
+h4,
+h5 {
+  letter-spacing: var(--track-tight);
 }
 
 @media (prefers-reduced-motion: reduce) {
