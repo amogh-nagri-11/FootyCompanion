@@ -3,6 +3,8 @@ import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
 import type { ArchivedMatch } from '../types';
 import { EventFeed } from './EventFeed';
+import { MatchStatsPanel } from './MatchStatsPanel';
+import { MatchChat } from './MatchChat';
 import { ChevronLeftIcon } from './icons';
 import styles from './Screens.module.css';
 
@@ -48,6 +50,20 @@ export function ArchiveMatchScreen({ matchId }: { matchId: string }) {
           minute: 90,
           status: 'finished',
         }}
+      />
+
+      {/* An archived match is settled, so its stats are cached for a day. */}
+      <MatchStatsPanel
+        matchId={data.match_id}
+        finished
+        homeTeam={data.home_team}
+        awayTeam={data.away_team}
+      />
+
+      <MatchChat
+        matchId={data.match_id}
+        homeTeam={data.home_team}
+        awayTeam={data.away_team}
       />
     </>
   );

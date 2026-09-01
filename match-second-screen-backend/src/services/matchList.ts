@@ -1,5 +1,13 @@
+import { config } from '../config.js';
 import { cacheGetJson, cacheSetJson } from '../redis.js';
-import { fetchLiveFixtures, fetchUpcomingFixtures, MatchSummary } from './sportsApi.js';
+import {
+  fetchFixturesByDate,
+  fetchLiveFixtures,
+  fetchUpcomingFixtures,
+  isIsoDate,
+  MatchSummary,
+  todayUtc,
+} from './sportsApi.js';
 
 const LIVE_KEY = 'matches:live';
 const UPCOMING_KEY = 'matches:upcoming';
@@ -49,4 +57,74 @@ export async function getFixtures(): Promise<FixtureList> {
 
   const upcoming = await cached(UPCOMING_KEY, UPCOMING_TTL_SECONDS, fetchUpcomingFixtures);
   return { ...upcoming, kind: 'upcoming' };
+}
+
+// ---------------------------------------------------------------------------
+// Browsing by date
+// ---------------------------------------------------------------------------
+
+/**
+ * A past day's fixtures never change again, so they are held long enough that
+ * scrolling back through the week costs one upstream call per day, once. Today
+ * is still in motion (scores, kickoffs, postponements) and a future day can
+ * still gain fixtures, so both get a short life.
+ */
+const PAST_DATE_TTL_SECONDS = 24 * 60 * 60;
+const TODAY_TTL_SECONDS = 60;
+const FUTURE_DATE_TTL_SECONDS = 15 * 60;
+
+function ttlForDate(date: string): number {
+  const today = todayUtc();
+  if (date < today) return PAST_DATE_TTL_SECONDS;
+  if (date === today) return TODAY_TTL_SECONDS;
+  return FUTURE_DATE_TTL_SECONDS;
+}
+
+export interface DatedFixtureList {
+  matches: MatchSummary[];
+  cached: boolean;
+  date: string;
+  /** Inclusive range the client may navigate, so it can cap its own controls. */
+  window: { from: string; to: string };
+}
+
+/** Shifts a YYYY-MM-DD by whole days without tripping over month ends. */
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function fixtureDateWindow(): { from: string; to: string } {
+  const today = todayUtc();
+  const span = config.fixtureDateWindowDays;
+  return { from: shiftDate(today, -span), to: shiftDate(today, span) };
+}
+
+/** Raised for a date the plan will refuse, so the route can answer 400 not 502. */
+export class DateOutOfRangeError extends Error {
+  window: { from: string; to: string };
+
+  constructor(window: { from: string; to: string }) {
+    super(
+      `That date is outside the range this API plan allows (${window.from} to ${window.to}).`
+    );
+    this.name = 'DateOutOfRangeError';
+    this.window = window;
+  }
+}
+
+/** Every fixture on one UTC day, whatever its state. */
+export async function getFixturesForDate(date: string): Promise<DatedFixtureList> {
+  if (!isIsoDate(date)) throw new Error(`Invalid date '${date}', expected YYYY-MM-DD`);
+
+  // Checked before the request rather than after: walking outside the plan's
+  // window is a certainty, not a maybe, and a wasted call costs 1% of the day.
+  const window = fixtureDateWindow();
+  if (date < window.from || date > window.to) throw new DateOutOfRangeError(window);
+
+  const { matches, cached: fromCache } = await cached(`matches:date:${date}`, ttlForDate(date), () =>
+    fetchFixturesByDate(date)
+  );
+  return { matches, cached: fromCache, date, window };
 }

@@ -1,0 +1,206 @@
+.wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.team {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.meta {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+/* Pitch ---------------------------------------------------------------- */
+
+.pitch {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse; /* keeper at the bottom, attack up the page */
+  justify-content: space-around;
+  gap: 4px;
+  min-height: 340px;
+  padding: 14px 8px;
+  /* Mown stripes in the page's own ink rather than pitch green, so the pitch
+     reads as a diagram and the shirts stay the only colour on it. */
+  background-image: repeating-linear-gradient(
+    to top,
+    rgba(20, 20, 26, 0.03) 0 34px,
+    rgba(20, 20, 26, 0.06) 34px 68px
+  );
+}
+
+.halfway,
+.centreCircle,
+.box {
+  position: absolute;
+  border-color: var(--border-strong);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.halfway {
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+.centreCircle {
+  top: 50%;
+  left: 50%;
+  width: 84px;
+  height: 84px;
+  margin: -42px 0 0 -42px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.box {
+  bottom: 0;
+  left: 50%;
+  width: 46%;
+  height: 54px;
+  margin-left: -23%;
+  border: 1px solid var(--border-strong);
+  border-bottom: 0;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  gap: 4px;
+}
+
+.player {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 5.5rem;
+}
+
+.shirt {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* Colour is set per shirt in JS — clubs play in everything from white to
+     near-black, so the ink is picked from the kit's brightness. */
+}
+
+.name {
+  max-width: 100%;
+  color: var(--text);
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px var(--surface);
+}
+
+/* Fallback when the feed gives no grid ---------------------------------- */
+
+.plainList {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+  font-size: 0.82rem;
+}
+
+.plainList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plainNumber {
+  min-width: 1.5rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.plainPos {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+}
+
+/* Substitutes ----------------------------------------------------------- */
+
+.subs {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.subsTitle {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.subsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 2px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 0.76rem;
+}
+
+.subNumber {
+  min-width: 1.3rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.subName {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subPos {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 0.68rem;
+}

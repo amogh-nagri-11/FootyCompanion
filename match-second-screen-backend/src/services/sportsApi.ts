@@ -426,3 +426,298 @@ export async function fetchLiveMatch(matchId: string): Promise<LiveMatchState> {
     ? fetchMockLiveMatch(matchId)
     : fetchRealLiveMatch(matchId);
 }
+// ---------------------------------------------------------------------------
+// Fixtures for an arbitrary calendar day
+// ---------------------------------------------------------------------------
+
+/** True when `value` is a plain YYYY-MM-DD date, which is all the API accepts. */
+export function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
+}
+
+/** Today in UTC — the calendar the API's `date` filter uses. */
+export function todayUtc(): string {
+  return utcDate();
+}
+
+async function fetchMockFixturesByDate(date: string): Promise<MatchSummary[]> {
+  const live = await fetchMockLiveFixtures();
+  return live.map((m) => ({ ...m, matchId: `${m.matchId}-${date}`, kickoff: `${date}T15:00:00+00:00` }));
+}
+
+/**
+ * Every fixture on one UTC day, whatever its state — the date browser shows
+ * finished, in-play and upcoming side by side, so unlike the live list this
+ * deliberately does not filter by status.
+ */
+export async function fetchFixturesByDate(date: string): Promise<MatchSummary[]> {
+  if (!isIsoDate(date)) throw new Error(`Invalid date '${date}', expected YYYY-MM-DD`);
+  if (config.useMockSportsData) return fetchMockFixturesByDate(date);
+  return fetchFixtureList(`date=${date}`, `fixtures for ${date}`);
+}
+
+// ---------------------------------------------------------------------------
+// Match detail: team statistics, lineups, player ratings
+// ---------------------------------------------------------------------------
+
+/** Team totals for one side. `null` means the source had no value, not zero. */
+export interface TeamStats {
+  team: string;
+  expectedGoals: number | null;
+  possession: number | null;
+  shotsTotal: number | null;
+  shotsOnTarget: number | null;
+  shotsOffTarget: number | null;
+  shotsBlocked: number | null;
+  corners: number | null;
+  fouls: number | null;
+  offsides: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  saves: number | null;
+  passesTotal: number | null;
+  passesAccurate: number | null;
+  passAccuracy: number | null;
+  /** Summed from the per-player feed; absent from the team statistics endpoint. */
+  duelsWon: number | null;
+  duelsTotal: number | null;
+}
+
+export interface LineupPlayer {
+  id: number;
+  name: string;
+  number: number | null;
+  position: string | null;
+  /** "row:col" from the API, kept raw so the client can lay out a pitch. */
+  grid: string | null;
+}
+
+export interface TeamLineup {
+  team: string;
+  formation: string | null;
+  coach: string | null;
+  /** Shirt colours the API supplies, used to tint the pitch view. */
+  colors: { player: string | null; goalkeeper: string | null };
+  startXI: LineupPlayer[];
+  substitutes: LineupPlayer[];
+}
+
+export interface PlayerRating {
+  id: number;
+  name: string;
+  team: string;
+  photo: string | null;
+  position: string | null;
+  minutes: number | null;
+  rating: number | null;
+  goals: number | null;
+  assists: number | null;
+  shotsTotal: number | null;
+  shotsOn: number | null;
+  passes: number | null;
+  /**
+   * Count of accurate passes, NOT a percentage — the player feed's `accuracy`
+   * field is always <= `total` (a defender with 13 of 13 reports 13). The team
+   * endpoint's "Passes %" is a real percentage; these two are not the same
+   * measure and must not be labelled the same way.
+   */
+  passesAccurate: number | null;
+  keyPasses: number | null;
+  duelsWon: number | null;
+  duelsTotal: number | null;
+  tackles: number | null;
+  yellow: number | null;
+  red: number | null;
+  substitute: boolean;
+}
+
+export interface MatchStats {
+  teams: TeamStats[];
+  lineups: TeamLineup[];
+  players: PlayerRating[];
+  /** Which parts the upstream actually had — the UI hides empty sections. */
+  available: { stats: boolean; lineups: boolean; players: boolean };
+}
+
+const num = (v: unknown): number | null => {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  // Possession and pass accuracy arrive as "62%".
+  const parsed = Number(String(v).replace('%', '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/** GET one of the fixture sub-resources, tolerating an empty payload. */
+async function fetchFixtureResource<T>(path: string, label: string): Promise<T[]> {
+  const res = await fetch(apiUrl(path), { headers: apiHeaders() });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`API-Football ${label} request failed: ${res.status} ${body.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as { response?: T[]; errors?: unknown };
+  const errors = data.errors;
+  const hasErrors = Array.isArray(errors)
+    ? errors.length > 0
+    : Boolean(errors) && Object.keys(errors as object).length > 0;
+  if (hasErrors) throw new Error(`API-Football ${label} returned errors: ${JSON.stringify(errors)}`);
+  return data.response ?? [];
+}
+
+interface ApiTeamStatistics {
+  team?: { name?: string };
+  statistics?: { type?: string; value?: unknown }[];
+}
+
+function toTeamStats(entry: ApiTeamStatistics, duels: Map<string, { won: number; total: number }>): TeamStats {
+  const by = new Map<string, unknown>();
+  for (const s of entry.statistics ?? []) if (s.type) by.set(s.type, s.value);
+  const team = entry.team?.name ?? 'Unknown';
+  const d = duels.get(team);
+  return {
+    team,
+    // API-Football names this one in snake_case while every other key is
+    // title-cased, so it is looked up separately rather than by a shared helper.
+    expectedGoals: num(by.get('expected_goals')),
+    possession: num(by.get('Ball Possession')),
+    shotsTotal: num(by.get('Total Shots')),
+    shotsOnTarget: num(by.get('Shots on Goal')),
+    shotsOffTarget: num(by.get('Shots off Goal')),
+    shotsBlocked: num(by.get('Blocked Shots')),
+    corners: num(by.get('Corner Kicks')),
+    fouls: num(by.get('Fouls')),
+    offsides: num(by.get('Offsides')),
+    yellowCards: num(by.get('Yellow Cards')),
+    redCards: num(by.get('Red Cards')),
+    saves: num(by.get('Goalkeeper Saves')),
+    passesTotal: num(by.get('Total passes')),
+    passesAccurate: num(by.get('Passes accurate')),
+    passAccuracy: num(by.get('Passes %')),
+    duelsWon: d ? d.won : null,
+    duelsTotal: d ? d.total : null,
+  };
+}
+
+interface ApiLineupSlot {
+  player?: { id?: number; name?: string; number?: number; pos?: string; grid?: string };
+}
+
+interface ApiLineup {
+  team?: { name?: string; colors?: { player?: { primary?: string }; goalkeeper?: { primary?: string } } };
+  coach?: { name?: string };
+  formation?: string;
+  startXI?: ApiLineupSlot[];
+  substitutes?: ApiLineupSlot[];
+}
+
+const toLineupPlayer = (p: ApiLineupSlot): LineupPlayer => ({
+  id: p?.player?.id ?? 0,
+  name: p?.player?.name ?? 'Unknown',
+  number: p?.player?.number ?? null,
+  position: p?.player?.pos ?? null,
+  grid: p?.player?.grid ?? null,
+});
+
+function toLineup(entry: ApiLineup): TeamLineup {
+  return {
+    team: entry.team?.name ?? 'Unknown',
+    formation: entry.formation ?? null,
+    coach: entry.coach?.name ?? null,
+    colors: {
+      player: entry.team?.colors?.player?.primary ? `#${entry.team.colors.player.primary}` : null,
+      goalkeeper: entry.team?.colors?.goalkeeper?.primary
+        ? `#${entry.team.colors.goalkeeper.primary}`
+        : null,
+    },
+    startXI: (entry.startXI ?? []).map(toLineupPlayer),
+    substitutes: (entry.substitutes ?? []).map(toLineupPlayer),
+  };
+}
+
+interface ApiPlayersEntry {
+  team?: { name?: string };
+  players?: {
+    player?: { id?: number; name?: string; photo?: string };
+    statistics?: Record<string, any>[];
+  }[];
+}
+
+function toPlayerRatings(entries: ApiPlayersEntry[]): PlayerRating[] {
+  const out: PlayerRating[] = [];
+  for (const entry of entries) {
+    const team = entry.team?.name ?? 'Unknown';
+    for (const p of entry.players ?? []) {
+      const s = p.statistics?.[0] ?? {};
+      out.push({
+        id: p.player?.id ?? 0,
+        name: p.player?.name ?? 'Unknown',
+        team,
+        photo: p.player?.photo ?? null,
+        position: s.games?.position ?? null,
+        minutes: num(s.games?.minutes),
+        rating: num(s.games?.rating),
+        goals: num(s.goals?.total),
+        assists: num(s.goals?.assists),
+        shotsTotal: num(s.shots?.total),
+        shotsOn: num(s.shots?.on),
+        passes: num(s.passes?.total),
+        passesAccurate: num(s.passes?.accuracy),
+        keyPasses: num(s.passes?.key),
+        duelsWon: num(s.duels?.won),
+        duelsTotal: num(s.duels?.total),
+        tackles: num(s.tackles?.total),
+        yellow: num(s.cards?.yellow),
+        red: num(s.cards?.red),
+        substitute: Boolean(s.games?.substitute),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Everything the detail screen shows beyond the scoreline, in one shot.
+ *
+ * Three upstream calls against a 100/day quota, which is why this is only ever
+ * reached through the cache in `matchStats.ts` and never from the poll loop.
+ * A failure in any one part degrades that section to empty rather than failing
+ * the request: a missing lineup should not cost the user their xG.
+ */
+export async function fetchMatchStats(matchId: string): Promise<MatchStats> {
+  const id = encodeURIComponent(matchId);
+
+  const [statsRes, lineupRes, playerRes] = await Promise.allSettled([
+    fetchFixtureResource<ApiTeamStatistics>(`fixtures/statistics?fixture=${id}`, 'statistics'),
+    fetchFixtureResource<ApiLineup>(`fixtures/lineups?fixture=${id}`, 'lineups'),
+    fetchFixtureResource<ApiPlayersEntry>(`fixtures/players?fixture=${id}`, 'player stats'),
+  ]);
+
+  const settled = <T>(r: PromiseSettledResult<T[]>): T[] => (r.status === 'fulfilled' ? r.value : []);
+  const playerEntries = settled(playerRes);
+  const players = toPlayerRatings(playerEntries);
+
+  // Team duel totals are not on the statistics endpoint, so roll them up from
+  // the per-player feed. Coverage is patchy — when every player is null the
+  // total stays null rather than collapsing to a misleading 0.
+  const duels = new Map<string, { won: number; total: number }>();
+  for (const p of players) {
+    if (p.duelsWon === null && p.duelsTotal === null) continue;
+    const acc = duels.get(p.team) ?? { won: 0, total: 0 };
+    acc.won += p.duelsWon ?? 0;
+    acc.total += p.duelsTotal ?? 0;
+    duels.set(p.team, acc);
+  }
+
+  const teamStats = settled(statsRes);
+  const lineups = settled(lineupRes);
+
+  return {
+    teams: teamStats.map((t) => toTeamStats(t, duels)),
+    lineups: lineups.map(toLineup),
+    players,
+    available: {
+      stats: teamStats.length > 0,
+      lineups: lineups.length > 0,
+      players: players.length > 0,
+    },
+  };
+}

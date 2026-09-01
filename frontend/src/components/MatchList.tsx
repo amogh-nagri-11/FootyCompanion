@@ -1,13 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
-import type { FixtureKind, MatchSummary } from '../types';
+import type { DatedFixtureList, FixtureKind, MatchSummary } from '../types';
 import { majorLeagueRank, TIER_LABELS, type Tier } from '../lib/leagues';
 import { TeamCrest } from './TeamCrest';
 import { MatchListSkeleton } from './Skeleton';
+import { DateBar, todayUtc } from './DateBar';
 import { SearchIcon, StarIcon } from './icons';
 import styles from './MatchList.module.css';
+
+/** `/matches/live` — what is in play, or the next kickoffs when nothing is. */
+interface LiveFixtureList {
+  matches: MatchSummary[];
+  cached: boolean;
+  kind?: FixtureKind;
+}
+
+type FixtureResponse = LiveFixtureList | DatedFixtureList;
 
 interface Props {
   /** Restrict to these match ids (saved view) or teams (following view). */
@@ -21,6 +31,11 @@ interface Props {
   onToggleSave: (matchId: string) => void;
   /** Used to float leagues containing a followed team to the top. */
   followedTeams?: Set<string>;
+  /**
+   * Show the day picker and load fixtures by date. The home screen browses;
+   * the saved and following screens stay pinned to what is in play.
+   */
+  browseByDate?: boolean;
 }
 
 export function MatchList({
@@ -32,18 +47,35 @@ export function MatchList({
   savedIds,
   onToggleSave,
   followedTeams,
+  browseByDate = false,
 }: Props) {
   const [query, setQuery] = useState('');
-  const { data, loading, error, reload } = useApiResource(
+  const [date, setDate] = useState(todayUtc());
+
+  const { data, loading, error, reload } = useApiResource<FixtureResponse>(
     () =>
-      api.get<{ matches: MatchSummary[]; cached: boolean; kind?: FixtureKind }>(
-        '/matches/live'
-      ),
-    []
+      browseByDate
+        ? api.get<DatedFixtureList>(`/matches/by-date?date=${date}`)
+        : api.get<LiveFixtureList>('/matches/live'),
+    [browseByDate, date]
   );
 
-  // The endpoint falls back to the next kickoffs when nothing is in play.
-  const kind: FixtureKind = data?.kind ?? 'live';
+  // Remembered across loads so the strip keeps its shape while the next day
+  // fetches, instead of collapsing to one button and jumping under the cursor.
+  const windowRef = useRef<DatedFixtureList['window'] | null>(null);
+  if (data && 'window' in data) windowRef.current = data.window;
+  const window = windowRef.current;
+
+  const today = todayUtc();
+  // A past day has no kickoffs left to show and a future one is all kickoffs,
+  // so the date view labels itself by the day rather than by the live fallback.
+  const kind: FixtureKind = browseByDate
+    ? date > today
+      ? 'upcoming'
+      : 'live'
+    : data && 'kind' in data
+      ? (data.kind ?? 'live')
+      : 'live';
   const upcoming = kind === 'upcoming';
 
   const filtered = useMemo(() => {
@@ -116,10 +148,15 @@ export function MatchList({
     [filtered]
   );
 
+  const dateBar = browseByDate ? (
+    <DateBar date={date} onChange={setDate} window={window} />
+  ) : null;
+
   if (loading) {
     return (
       <>
-        <PageHeader title={title} subtitle="Fetching today's fixtures…" />
+        <PageHeader title={title} subtitle="Fetching fixtures…" />
+        {dateBar}
         <MatchListSkeleton />
       </>
     );
@@ -127,12 +164,15 @@ export function MatchList({
 
   if (error) {
     return (
-      <div className={`${styles.state} ${styles.error}`}>
-        <p className={styles.stateText}>{error}</p>
-        <button className={styles.retry} type="button" onClick={reload}>
-          Try again
-        </button>
-      </div>
+      <>
+        {dateBar}
+        <div className={`${styles.state} ${styles.error}`}>
+          <p className={styles.stateText}>{error}</p>
+          <button className={styles.retry} type="button" onClick={reload}>
+            Try again
+          </button>
+        </div>
+      </>
     );
   }
 
@@ -148,7 +188,9 @@ export function MatchList({
                 {liveCount} live
               </span>
             )}
-            {upcoming && <span className={styles.soonPill}>Nothing in play</span>}
+            {!browseByDate && upcoming && (
+              <span className={styles.soonPill}>Nothing in play</span>
+            )}
             <span>
               {filtered.length} {filtered.length === 1 ? 'match' : 'matches'} across{' '}
               {groups.length} {groups.length === 1 ? 'league' : 'leagues'}
@@ -171,7 +213,9 @@ export function MatchList({
         }
       />
 
-      {upcoming && filtered.length > 0 && (
+      {dateBar}
+
+      {!browseByDate && upcoming && filtered.length > 0 && (
         <p className={styles.fallbackNote}>
           No matches are being played right now — here are the next kickoffs.
         </p>
@@ -180,7 +224,11 @@ export function MatchList({
       {filtered.length === 0 ? (
         <div className={styles.state}>
           <p className={styles.stateTitle}>
-            {query ? 'Nothing matches that search' : 'Nothing on right now'}
+            {query
+              ? 'Nothing matches that search'
+              : browseByDate
+                ? 'No fixtures on this day'
+                : 'Nothing on right now'}
           </p>
           <p className={styles.stateText}>
             {query ? `No team or league matches “${query.trim()}”.` : emptyMessage}

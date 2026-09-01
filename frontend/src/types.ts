@@ -160,3 +160,86 @@ export interface FplAlert extends FplAlertMessage {
   /** Client-side id, since the same player can feature more than once. */
   key: string;
 }
+
+// --- Match statistics -------------------------------------------------------
+// `null` throughout means the upstream had no value for this fixture, which is
+// common on the free tier and must render as "—" rather than 0.
+
+export interface TeamStats {
+  team: string;
+  expectedGoals: number | null;
+  possession: number | null;
+  shotsTotal: number | null;
+  shotsOnTarget: number | null;
+  shotsOffTarget: number | null;
+  shotsBlocked: number | null;
+  corners: number | null;
+  fouls: number | null;
+  offsides: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  saves: number | null;
+  passesTotal: number | null;
+  passesAccurate: number | null;
+  passAccuracy: number | null;
+  duelsWon: number | null;
+  duelsTotal: number | null;
+}
+
+export interface LineupPlayer {
+  id: number;
+  name: string;
+  number: number | null;
+  position: string | null;
+  /** "row:col" from the API — row 1 is the keeper. */
+  grid: string | null;
+}
+
+export interface TeamLineup {
+  team: string;
+  formation: string | null;
+  coach: string | null;
+  colors: { player: string | null; goalkeeper: string | null };
+  startXI: LineupPlayer[];
+  substitutes: LineupPlayer[];
+}
+
+export interface PlayerRating {
+  id: number;
+  name: string;
+  team: string;
+  photo: string | null;
+  position: string | null;
+  minutes: number | null;
+  rating: number | null;
+  goals: number | null;
+  assists: number | null;
+  shotsTotal: number | null;
+  shotsOn: number | null;
+  passes: number | null;
+  /** Count of accurate passes, not a percentage (see the backend's note). */
+  passesAccurate: number | null;
+  keyPasses: number | null;
+  duelsWon: number | null;
+  duelsTotal: number | null;
+  tackles: number | null;
+  yellow: number | null;
+  red: number | null;
+  substitute: boolean;
+}
+
+export interface MatchStats {
+  teams: TeamStats[];
+  lineups: TeamLineup[];
+  players: PlayerRating[];
+  available: { stats: boolean; lineups: boolean; players: boolean };
+  cached: boolean;
+}
+
+/** `/matches/by-date` — one UTC day, plus the range the plan allows. */
+export interface DatedFixtureList {
+  matches: MatchSummary[];
+  cached: boolean;
+  date: string;
+  window: { from: string; to: string };
+}

@@ -1,6 +1,7 @@
 import { useMatchSocket } from '../hooks/useMatchSocket';
 import { href } from '../hooks/useRoute';
 import { EventFeed } from './EventFeed';
+import { MatchStatsPanel } from './MatchStatsPanel';
 import { Scoreboard } from './Scoreboard';
 import { WinProbabilityBar } from './WinProbabilityBar';
 import { FplPanel } from './FplPanel';
@@ -146,6 +147,13 @@ export function MatchView({
           <EventFeed events={events} freshEventIds={freshEventIds} state={state} />
         </div>
       </div>
+
+      <MatchStatsPanel
+        matchId={state.matchId}
+        finished={state.status === 'finished'}
+        homeTeam={state.homeTeam}
+        awayTeam={state.awayTeam}
+      />
     </>
   );
 }

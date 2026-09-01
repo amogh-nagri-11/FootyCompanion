@@ -1,0 +1,303 @@
+.panel {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* Tabs ---------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tabActive {
+  color: var(--text);
+  border-bottom-color: var(--brand);
+}
+
+.cachedTag {
+  margin-left: auto;
+  padding-right: 10px;
+  color: var(--text-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Comparison bars ------------------------------------------------------ */
+
+.stats {
+  display: grid;
+  gap: 14px;
+  padding: 18px 16px;
+}
+
+.statRow {
+  display: grid;
+  gap: 6px;
+}
+
+.statHead {
+  display: grid;
+  grid-template-columns: 4rem 1fr 4rem;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.statValue {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.statHead .statValue:last-child {
+  text-align: right;
+}
+
+/* The larger side is the point of the row, so it gets full contrast. */
+.statLead {
+  color: var(--text);
+}
+
+.statLabel {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.bar {
+  display: flex;
+  height: 6px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.barHome {
+  background: var(--home);
+  transition: width var(--dur) var(--ease);
+}
+
+.barAway {
+  background: var(--away);
+  transition: width var(--dur) var(--ease);
+}
+
+/* Lineups -------------------------------------------------------------- */
+
+.lineups {
+  display: grid;
+  gap: 18px;
+  padding: 18px 16px;
+}
+
+@media (min-width: 900px) {
+  .lineups {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Player ratings ------------------------------------------------------- */
+
+.players {
+  display: grid;
+  gap: 20px;
+  padding: 18px 16px;
+}
+
+@media (min-width: 900px) {
+  .players {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.playerTeamName {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.playerList {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.playerRow:nth-child(odd) {
+  background: var(--surface-sunken);
+}
+
+.playerMain {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.playerName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subTag {
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: var(--surface-hover);
+  color: var(--text-faint);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.playerMeta {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerCards {
+  display: flex;
+  gap: 3px;
+}
+
+.yellowCard,
+.redCard {
+  width: 8px;
+  height: 11px;
+  border-radius: 1px;
+}
+
+.yellowCard {
+  background: var(--warning);
+}
+
+.redCard {
+  background: var(--danger);
+}
+
+/* Rating chip ---------------------------------------------------------- */
+
+.rating {
+  flex: 0 0 auto;
+  min-width: 2.4rem;
+  padding: 3px 0;
+  border-radius: var(--radius-xs);
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+/* A value ramp rather than a traffic light: ink for the best performance,
+   then indigo, clay and red. It stays readable in both themes and keeps the
+   accent red meaning "poor" rather than competing with the live colour. */
+.ratingHigh {
+  background: var(--text);
+  color: var(--surface);
+}
+
+.ratingGood {
+  background: var(--home);
+}
+
+.ratingOk {
+  background: var(--away);
+}
+
+.ratingPoor {
+  background: var(--danger);
+}
+
+.ratingNone {
+  background: var(--surface-hover);
+  color: var(--text-faint);
+}
+
+/* States --------------------------------------------------------------- */
+
+.state {
+  padding: 26px 18px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+.stateTitle {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.retry {
+  margin-top: 10px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.retry:hover {
+  background: var(--surface-hover);
+}

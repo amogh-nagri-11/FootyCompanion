@@ -15,7 +15,6 @@ import { useProfile, profileName } from './lib/profileContext';
 import { Avatar } from './components/Avatar';
 import {
   ArchiveIcon,
-  AutoThemeIcon,
   BallIcon,
   HeartIcon,
   LiveIcon,
@@ -89,12 +88,13 @@ function Routes() {
   return (
     <MatchList
       key="live"
-      title="Live matches"
-      upcomingTitle="Upcoming matches"
-      emptyMessage="No matches are in play right now, and no kickoffs are scheduled for the next couple of days."
+      title="Matches"
+      upcomingTitle="Matches"
+      emptyMessage="No fixtures are scheduled on this day."
       savedIds={saved}
       onToggleSave={toggleSave}
       followedTeams={teams}
+      browseByDate
     />
   );
 }
@@ -117,23 +117,17 @@ function AccountChip({ email }: { email?: string }) {
   );
 }
 
-const THEME_LABEL = {
-  system: 'Theme: follows your system',
-  light: 'Theme: light',
-  dark: 'Theme: dark',
-} as const;
-
 function ThemeToggle() {
   const { pref, cycle } = useTheme();
-  const Icon = pref === 'light' ? SunIcon : pref === 'dark' ? MoonIcon : AutoThemeIcon;
+  const Icon = pref === 'light' ? MoonIcon : SunIcon;
 
   return (
     <button
       className={styles.iconBtn}
       type="button"
       onClick={cycle}
-      title={`${THEME_LABEL[pref]} — click to change`}
-      aria-label={THEME_LABEL[pref]}
+      title={pref === 'light' ? 'Switch to dark' : 'Switch to light'}
+      aria-label={pref === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
     >
       <Icon size={17} />
     </button>
@@ -178,7 +172,7 @@ function AppShell() {
             <span className={styles.brandMark} aria-hidden="true">
               <BallIcon size={17} />
             </span>
-            <span className={styles.brandName}>FootyCompanion</span>
+            <span className={styles.brandName}>LiveXI</span>
           </a>
 
           <nav className={styles.nav} aria-label="Sections">
