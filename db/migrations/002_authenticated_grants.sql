@@ -1,4 +1,4 @@
--- FootyCompanion — restore RLS as the enforcing layer (OPTIONAL)
+-- LiveXI — restore RLS as the enforcing layer (OPTIONAL)
 --
 -- The `authenticated` role currently has no DML grant on any application table,
 -- so the RLS policies that exist ("users manage own …") are unreachable: a

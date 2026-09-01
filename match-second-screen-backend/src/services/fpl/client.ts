@@ -81,7 +81,7 @@ export class FplError extends Error {
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     // FPL serves a challenge page to clients with no user agent.
-    headers: { 'User-Agent': 'FootyCompanion/1.0' },
+    headers: { 'User-Agent': 'LiveXI/1.0' },
   });
 
   if (res.status === 404) throw new FplError(`Not found: ${path}`, 404);

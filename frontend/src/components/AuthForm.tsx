@@ -101,7 +101,7 @@ export function AuthForm() {
         <span className={styles.mark} aria-hidden="true">
           <BallIcon size={24} />
         </span>
-        <h1 className={styles.brand}>FootyCompanion</h1>
+        <h1 className={styles.brand}>LiveXI</h1>
         <p className={styles.tagline}>Live scores, events and win probability.</p>
 
         <div className={styles.tabs} role="tablist" aria-label="Authentication mode">

@@ -1,4 +1,4 @@
--- FootyCompanion — profile fields
+-- LiveXI — profile fields
 --
 -- Run this against the Supabase project (SQL Editor, or psql with DATABASE_URL).
 -- Every statement is idempotent, so re-running it is safe.

@@ -1,4 +1,4 @@
-# FootyCompanion — frontend
+# LiveXI — frontend
 
 React + TypeScript + Vite second-screen view for a single live match.
 

@@ -1,4 +1,4 @@
--- FootyCompanion — store the computed turning point on archived matches
+-- LiveXI — store the computed turning point on archived matches
 --
 -- Run against the Supabase project (SQL Editor, or psql with DATABASE_URL).
 -- Idempotent; safe to re-run.
