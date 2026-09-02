@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/server.ts"
+    "test": "vitest run",
+    "dev": "tsx watch src/server.ts",
+    "test:watch": "vitest",
+    "eval:llm": "tsx src/scripts/evalLlm.ts",
+    "backfill:team-ids": "tsx src/scripts/backfillTeamIds.ts"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +31,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.4.0",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
   }
 }
