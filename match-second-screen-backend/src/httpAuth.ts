@@ -1,31 +1,36 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { verifyToken, AuthedUser } from './auth.js';
-import { supabaseAdmin } from './supabase.js';
+import { supabaseForUser } from './supabase.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthedUser;
     /**
-     * Service-role Supabase client. RLS does NOT apply to it, so every query
-     * touching a user-owned table MUST filter on `req.user.id` explicitly.
-     * See the note on `db` below.
+     * Supabase client acting as the caller, so RLS applies to every query.
+     * Routes still filter by `req.user.id` where it makes the intent clear,
+     * but the database is what enforces it.
      */
     db?: SupabaseClient;
   }
 }
 
 /*
- * Ideally this would attach a client carrying the caller's JWT so the existing
- * RLS policies ("users manage own …") did the access control. They cannot: the
- * `authenticated` role has no SELECT/INSERT/UPDATE/DELETE grant on any of these
- * tables, so such a client gets "permission denied for table …" before RLS is
- * ever consulted, and only `service_role` has DML.
+ * Access control is enforced by the database.
  *
- * So we use the service-role client and scope by user id in each query. That is
- * safe only because the browser never talks to Postgres directly — every write
- * goes through these routes. If the grants are added later (see README), swap
- * this for a per-request JWT client and RLS becomes the enforcing layer again.
+ * `req.db` carries the caller's JWT, so the existing policies ("users manage
+ * own …") decide what each query can see, and `auth.uid()` resolves to the
+ * caller. This is the arrangement db/migrations/002 exists to enable: before
+ * those grants, the `authenticated` role had no DML on any application table,
+ * so a JWT-scoped client failed with "permission denied for table" before RLS
+ * was ever consulted, and the backend had to use the service-role client and
+ * scope every query by hand.
+ *
+ * That hand-scoping was one forgotten `.eq('user_id', …)` away from leaking
+ * another user's rows. Now a forgotten filter returns nothing instead.
+ *
+ * The service-role client still exists for work with no caller behind it — the
+ * poller archiving a finished match, reading a user's FPL id for their socket.
  */
 
 export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
@@ -42,5 +47,5 @@ export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
     return reply.code(401).send({ error: 'Invalid or expired token' });
   }
 
-  req.db = supabaseAdmin;
+  req.db = supabaseForUser(token);
 }
