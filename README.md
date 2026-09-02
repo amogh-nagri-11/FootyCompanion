@@ -87,7 +87,11 @@ What is still missing
   not there) and injection resistance. It cannot tell you whether the prose is
   any good; that still needs a human read.
 - **Chat answers are not streamed**, so there is a short wait behind an
-  indicator. Answers are cached for a day per exact thread.
+  indicator. Answers are cached for a day per exact thread; `eval:llm` bypasses
+  that cache so repeat runs grade fresh generations.
+- **The provider's per-minute token budget is easily hit.** A 429 is retried
+  using the delay the provider names, twice, capped at 8s. Beyond that the
+  reader gets the deterministic fallback rather than a wait.
 - **No load testing and no deployment.** Nothing here has faced real traffic,
   so the quota arithmetic above is reasoned rather than observed.
 - **Substitution direction upstream is unreliable** — a player with 14 minutes
