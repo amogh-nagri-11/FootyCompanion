@@ -1,3 +1,5 @@
+import { config } from '../config.js';
+import { redis } from '../redis.js';
 import { MatchEvent } from './sportsApi.js';
 
 /**
@@ -123,4 +125,38 @@ export function calculateMomentum(
     eventCount: counted,
     windowMinutes: WINDOW_MINUTES,
   };
+}
+
+
+const momentumKey = (matchId: string) => `match:${matchId}:momentum`;
+
+/**
+ * Persists the current momentum for a match.
+ *
+ * Momentum is recomputed from the event log on every poll, so this is not
+ * needed for the poll loop itself. It exists for the gap either side of it: a
+ * reader who opens a match between polls, or a server that has just restarted,
+ * would otherwise see an empty bar until the next event.
+ */
+export async function storeMomentum(matchId: string, momentum: Momentum): Promise<void> {
+  try {
+    await redis.set(
+      momentumKey(matchId),
+      JSON.stringify(momentum),
+      'EX',
+      config.seenEventsTtlSeconds
+    );
+  } catch {
+    // Momentum is a nicety; failing to cache it must not fail the poll.
+  }
+}
+
+/** Last stored momentum, or null when nothing is held or Redis is unreachable. */
+export async function loadMomentum(matchId: string): Promise<Momentum | null> {
+  try {
+    const raw = await redis.get(momentumKey(matchId));
+    return raw ? (JSON.parse(raw) as Momentum) : null;
+  } catch {
+    return null;
+  }
 }
