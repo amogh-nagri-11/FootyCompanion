@@ -102,6 +102,14 @@ interface Candidate {
 /**
  * Resolve a match-feed player name to an FPL player.
  *
+ * NOT machine learning. This is a deterministic ladder of string rules —
+ * normalise, exact match, surname match, then a bounded edit distance — and it
+ * is described as "fuzzy" only in the everyday sense of tolerating spelling
+ * variation. No model is involved, nothing is trained, and the same input
+ * always gives the same output. Worth stating plainly because "fuzzy matching"
+ * is easily read as a learned component, which would misdescribe both how it
+ * behaves and how it fails.
+ *
  * Feeds name players inconsistently — "Bukayo Saka", "B. Saka", "Saka",
  * "Paulinho" — so this walks a ladder from most to least confident and stops at
  * the first tier that produces exactly one candidate. Several candidates at the

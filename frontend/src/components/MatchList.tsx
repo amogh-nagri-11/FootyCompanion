@@ -4,6 +4,7 @@ import { href } from '../hooks/useRoute';
 import { useApiResource } from '../hooks/useApiResource';
 import type { DatedFixtureList, FixtureKind, MatchSummary } from '../types';
 import { majorLeagueRank, TIER_LABELS, type Tier } from '../lib/leagues';
+import { matchesAnyFollow, type FollowRef } from '../lib/teamMatch';
 import { TeamCrest } from './TeamCrest';
 import { MatchListSkeleton } from './Skeleton';
 import { DateBar, todayUtc } from './DateBar';
@@ -20,9 +21,9 @@ interface LiveFixtureList {
 type FixtureResponse = LiveFixtureList | DatedFixtureList;
 
 interface Props {
-  /** Restrict to these match ids (saved view) or teams (following view). */
+  /** Restrict to these match ids (saved view) or followed teams (following view). */
   onlyMatchIds?: Set<string>;
-  onlyTeams?: Set<string>;
+  onlyFollows?: FollowRef[];
   title: string;
   /** Heading to use when nothing is in play and the list is showing kickoffs. */
   upcomingTitle?: string;
@@ -30,7 +31,7 @@ interface Props {
   savedIds: Set<string>;
   onToggleSave: (matchId: string) => void;
   /** Used to float leagues containing a followed team to the top. */
-  followedTeams?: Set<string>;
+  followedTeams?: FollowRef[];
   /**
    * Show the day picker and load fixtures by date. The home screen browses;
    * the saved and following screens stay pinned to what is in play.
@@ -40,7 +41,7 @@ interface Props {
 
 export function MatchList({
   onlyMatchIds,
-  onlyTeams,
+  onlyFollows,
   title,
   upcomingTitle,
   emptyMessage,
@@ -81,9 +82,9 @@ export function MatchList({
   const filtered = useMemo(() => {
     let list = data?.matches ?? [];
     if (onlyMatchIds) list = list.filter((m) => onlyMatchIds.has(m.matchId));
-    if (onlyTeams) {
-      list = list.filter((m) => onlyTeams.has(m.homeTeam) || onlyTeams.has(m.awayTeam));
-    }
+    // Matched on team id where available, so a follow saved as "Man City"
+    // still catches a fixture the feed calls "Manchester City".
+    if (onlyFollows) list = list.filter((m) => matchesAnyFollow(m, onlyFollows));
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((m) =>
@@ -93,7 +94,7 @@ export function MatchList({
       );
     }
     return list;
-  }, [data, onlyMatchIds, onlyTeams, query]);
+  }, [data, onlyMatchIds, onlyFollows, query]);
 
   const groups = useMemo(() => {
     const byLeague = new Map<
@@ -125,10 +126,8 @@ export function MatchList({
 
         const rank = majorLeagueRank(group.league, group.country);
         const hasFollowed =
-          !!followedTeams?.size &&
-          group.matches.some(
-            (m) => followedTeams.has(m.homeTeam) || followedTeams.has(m.awayTeam)
-          );
+          !!followedTeams?.length &&
+          group.matches.some((m) => matchesAnyFollow(m, followedTeams));
 
         const tier: Tier = hasFollowed ? 0 : rank >= 0 ? 1 : 2;
         return { ...group, tier, rank };
@@ -260,10 +259,7 @@ export function MatchList({
                     isSaved={savedIds.has(m.matchId)}
                     onToggleSave={onToggleSave}
                     showKickoff={upcoming}
-                    isFollowed={
-                      !!followedTeams &&
-                      (followedTeams.has(m.homeTeam) || followedTeams.has(m.awayTeam))
-                    }
+                    isFollowed={!!followedTeams && matchesAnyFollow(m, followedTeams)}
                   />
                 ))}
               </ul>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import type { FollowRef } from '../lib/teamMatch';
 
 /**
  * Saved matches and followed teams, loaded once and kept in memory. Both are
@@ -9,15 +10,21 @@ import { api } from '../lib/api';
 export function useUserLists() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [teams, setTeams] = useState<Set<string>>(new Set());
+  // Names alone cannot match the feed reliably ("Man City" is not "Manchester
+  // City"), so the id comes along for the screens that filter on it.
+  const [follows, setFollows] = useState<FollowRef[]>([]);
 
   const load = useCallback(async () => {
     try {
       const [savedRes, followRes] = await Promise.all([
         api.get<{ saved: { match_id: string }[] }>('/matches/saved'),
-        api.get<{ teams: { team_name: string }[] }>('/follows'),
+        api.get<{ teams: { team_name: string; team_id?: number | null }[] }>('/follows'),
       ]);
       setSaved(new Set(savedRes.saved.map((s) => s.match_id)));
       setTeams(new Set(followRes.teams.map((t) => t.team_name)));
+      setFollows(
+        followRes.teams.map((t) => ({ teamName: t.team_name, teamId: t.team_id ?? null }))
+      );
     } catch {
       // A failure here should not block the match list; buttons simply show
       // the un-toggled state until the next load succeeds.
@@ -55,13 +62,23 @@ export function useUserLists() {
       else next.add(teamName);
       return next;
     });
+    setFollows((prev) =>
+      wasFollowing
+        ? prev.filter((f) => f.teamName !== teamName)
+        : // No id until the server resolves one; reload below fills it in.
+          [...prev, { teamName, teamId: null }]
+    );
+
     try {
       if (wasFollowing) await api.del(`/follows/${encodeURIComponent(teamName)}`);
       else await api.post('/follows', { teamName });
+      // Refresh so a newly followed team picks up its id (and the feed's own
+      // spelling) rather than staying on the name the user typed.
+      if (!wasFollowing) void load();
     } catch {
       void load();
     }
   }
 
-  return { saved, teams, toggleSave, toggleFollow, reload: load };
+  return { saved, teams, follows, toggleSave, toggleFollow, reload: load };
 }

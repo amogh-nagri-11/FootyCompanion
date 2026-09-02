@@ -1,16 +1,26 @@
 import { useState, type FormEvent } from 'react';
 import { MatchList } from './MatchList';
 import { TeamCrest } from './TeamCrest';
+import type { FollowRef } from '../lib/teamMatch';
 import styles from './Screens.module.css';
 
 interface Props {
+  /** Display names, in the order the list is rendered. */
   teams: Set<string>;
+  /** The same follows with their ids, for matching fixtures. */
+  follows: FollowRef[];
   savedIds: Set<string>;
   onToggleSave: (matchId: string) => void;
   onToggleFollow: (teamName: string) => void;
 }
 
-export function FollowingScreen({ teams, savedIds, onToggleSave, onToggleFollow }: Props) {
+export function FollowingScreen({
+  teams,
+  follows,
+  savedIds,
+  onToggleSave,
+  onToggleFollow,
+}: Props) {
   const [draft, setDraft] = useState('');
 
   function handleSubmit(e: FormEvent) {
@@ -71,7 +81,7 @@ export function FollowingScreen({ teams, savedIds, onToggleSave, onToggleFollow 
             title="Live now"
             upcomingTitle="Next up"
             emptyMessage="None of the teams you follow are playing right now."
-            onlyTeams={teams}
+            onlyFollows={follows}
             savedIds={savedIds}
             onToggleSave={onToggleSave}
           />

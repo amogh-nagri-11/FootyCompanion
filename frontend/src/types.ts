@@ -53,7 +53,8 @@ export type ServerMessage =
   | ConnectedMessage
   | UpdateMessage
   | FplUpdateMessage
-  | FplAlertMessage;
+  | FplAlertMessage
+  | FeedHealthMessage;
 
 export interface MatchSummary {
   matchId: string;
@@ -67,6 +68,31 @@ export interface MatchSummary {
   country: string | null;
   /** Kickoff time (ISO). Present for upcoming fixtures. */
   kickoff?: string | null;
+  /** Feed team ids — the stable identity a follow is matched on. */
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
+}
+
+/** Why a match feed stopped updating, so a stale score can say it is stale. */
+export type FeedStatus = 'ok' | 'degraded' | 'quota' | 'stopped';
+
+export interface FeedHealth {
+  status: FeedStatus;
+  message: string | null;
+  failures: number;
+  lastUpdate: string | null;
+}
+
+export interface FeedHealthMessage {
+  type: 'feed_health';
+  matchId: string;
+  health: FeedHealth;
+}
+
+export interface FollowedTeam {
+  team_name: string;
+  team_id: number | null;
+  created_at: string;
 }
 
 /** Which list `/matches/live` returned: what is in play, or the next kickoffs. */

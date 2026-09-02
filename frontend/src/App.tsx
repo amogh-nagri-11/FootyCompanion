@@ -36,7 +36,7 @@ const NAV: { path: string; label: string; icon: (p: { size?: number }) => ReactN
 
 function Routes() {
   const segments = useRoute();
-  const { saved, teams, toggleSave, toggleFollow } = useUserLists();
+  const { saved, teams, follows, toggleSave, toggleFollow } = useUserLists();
   const [head, param] = segments;
 
   if (head === 'match' && param) {
@@ -44,7 +44,7 @@ function Routes() {
       <MatchView
         matchId={param}
         isSaved={saved.has(param)}
-        followedTeams={teams}
+        followedTeams={follows}
         onToggleSave={toggleSave}
         onToggleFollow={toggleFollow}
       />
@@ -59,6 +59,7 @@ function Routes() {
     return (
       <FollowingScreen
         teams={teams}
+        follows={follows}
         savedIds={saved}
         onToggleSave={toggleSave}
         onToggleFollow={toggleFollow}
@@ -80,7 +81,7 @@ function Routes() {
         onlyMatchIds={saved}
         savedIds={saved}
         onToggleSave={toggleSave}
-        followedTeams={teams}
+        followedTeams={follows}
       />
     );
   }
@@ -93,7 +94,7 @@ function Routes() {
       emptyMessage="No fixtures are scheduled on this day."
       savedIds={saved}
       onToggleSave={toggleSave}
-      followedTeams={teams}
+      followedTeams={follows}
       browseByDate
     />
   );
