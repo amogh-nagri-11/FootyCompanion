@@ -8,6 +8,8 @@ import {
   send,
 } from '../services/connectionRegistry.js';
 import { startPolling, stopPolling, getLastKnownState } from '../services/matchPoller.js';
+import { getFeedHealth } from '../services/feedHealth.js';
+import { loadMomentum } from '../services/momentum.js';
 import { supabaseAdmin } from '../supabase.js';
 import { getFplTeamId } from '../services/fpl/store.js';
 import { onMatchUpdate, pushSquadUpdate } from '../services/fpl/liveBridge.js';
@@ -43,12 +45,25 @@ export async function wsRoutes(app: FastifyInstance) {
 
     const subscriber = subscribe(matchId, connection, user.id, fplTeamId);
 
-    startPolling(matchId, (id, newEvents, state, winProb, momentum) => {
-      broadcast(id, { type: 'update', events: newEvents, state, winProb, momentum });
-      void onMatchUpdate(id, newEvents, state);
-    });
+    startPolling(
+      matchId,
+      (id, newEvents, state, winProb, momentum) => {
+        broadcast(id, { type: 'update', events: newEvents, state, winProb, momentum });
+        void onMatchUpdate(id, newEvents, state);
+      },
+      // Everyone watching sees the same feed, so its health is broadcast, not
+      // sent to whoever happened to trigger the failing poll.
+      (id, health) => broadcast(id, { type: 'feed_health', matchId: id, health })
+    );
 
     send(subscriber, { type: 'connected', matchId, fplLinked: fplTeamId !== null });
+
+    // A client joining a feed that is already unhealthy needs to be told now;
+    // the next broadcast only fires when the status changes again.
+    const health = getFeedHealth(matchId);
+    if (health.status !== 'ok') {
+      send(subscriber, { type: 'feed_health', matchId, health });
+    }
 
     // Bring a client joining an already-tracked match up to date immediately,
     // rather than leaving it on "waiting for match data" until the next event.
@@ -58,8 +73,10 @@ export async function wsRoutes(app: FastifyInstance) {
         type: 'update',
         events: known.state.events,
         state: known.state,
+        // In-memory momentum is authoritative; the stored copy covers the case
+        // where this process restarted and has not polled yet.
+        momentum: known.momentum ?? (await loadMomentum(matchId)) ?? undefined,
         winProb: known.winProb,
-        momentum: known.momentum,
       });
     }
 

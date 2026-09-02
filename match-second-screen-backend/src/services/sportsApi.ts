@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { claimRequest } from './apiQuota.js';
 
 export interface MatchEvent {
   id: string;
@@ -79,7 +80,7 @@ interface ApiFixture {
     date?: string;
     status?: { short?: string; elapsed?: number | null; extra?: number | null };
   };
-  teams?: { home?: { name?: string }; away?: { name?: string } };
+  teams?: { home?: { name?: string; id?: number }; away?: { name?: string; id?: number } };
   goals?: { home?: number | null; away?: number | null };
   events?: ApiEvent[];
 }
@@ -241,6 +242,8 @@ function mapFixture(matchId: string, fixture: ApiFixture): LiveMatchState {
 }
 
 async function fetchRealLiveMatch(matchId: string): Promise<LiveMatchState> {
+  // Polling is the one caller that may spend down to the last request.
+  await claimRequest('poll');
   const res = await fetch(apiUrl(`fixtures?id=${encodeURIComponent(matchId)}`), {
     headers: apiHeaders(),
   });
@@ -295,6 +298,12 @@ export interface MatchSummary {
   country: string | null;
   /** Kickoff time (ISO). Present for upcoming fixtures; the client formats it. */
   kickoff: string | null;
+  /**
+   * Feed team ids. These are the stable identity — names vary by spelling and
+   * change between seasons, ids do not — so following matches on these.
+   */
+  homeTeamId: number | null;
+  awayTeamId: number | null;
 }
 
 interface ApiFixtureWithLeague extends ApiFixture {
@@ -314,6 +323,8 @@ function toSummary(fixture: ApiFixtureWithLeague): MatchSummary {
     league: fixture.league?.name ?? null,
     country: fixture.league?.country ?? null,
     kickoff: fixture.fixture?.date ?? null,
+    homeTeamId: fixture.teams?.home?.id ?? null,
+    awayTeamId: fixture.teams?.away?.id ?? null,
   };
 }
 
@@ -329,6 +340,8 @@ async function fetchMockLiveFixtures(): Promise<MatchSummary[]> {
     league: 'Mock League',
     country: 'Mockland',
     kickoff: null,
+    homeTeamId: 42 + i,
+    awayTeamId: 90 + i,
   }));
 }
 
@@ -348,11 +361,14 @@ async function fetchMockUpcomingFixtures(): Promise<MatchSummary[]> {
     league: 'Mock League',
     country: 'Mockland',
     kickoff: soon(inMinutes as number),
+    homeTeamId: null,
+    awayTeamId: null,
   }));
 }
 
 /** GET /fixtures?<query>, with the two failure modes this API has folded in. */
 async function fetchFixtureList(query: string, label: string): Promise<MatchSummary[]> {
+  await claimRequest('interactive');
   const res = await fetch(apiUrl(`fixtures?${query}`), { headers: apiHeaders() });
 
   if (!res.ok) {
@@ -549,6 +565,7 @@ const num = (v: unknown): number | null => {
 
 /** GET one of the fixture sub-resources, tolerating an empty payload. */
 async function fetchFixtureResource<T>(path: string, label: string): Promise<T[]> {
+  await claimRequest('interactive');
   const res = await fetch(apiUrl(path), { headers: apiHeaders() });
   if (!res.ok) {
     const body = await res.text().catch(() => '');

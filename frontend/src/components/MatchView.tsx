@@ -2,6 +2,7 @@ import { useMatchSocket } from '../hooks/useMatchSocket';
 import { href } from '../hooks/useRoute';
 import { EventFeed } from './EventFeed';
 import { MatchStatsPanel } from './MatchStatsPanel';
+import { isTeamFollowed, type FollowRef } from '../lib/teamMatch';
 import { Scoreboard } from './Scoreboard';
 import { WinProbabilityBar } from './WinProbabilityBar';
 import { FplPanel } from './FplPanel';
@@ -12,7 +13,7 @@ import styles from './MatchView.module.css';
 interface Props {
   matchId: string;
   isSaved: boolean;
-  followedTeams: Set<string>;
+  followedTeams: FollowRef[];
   onToggleSave: (matchId: string) => void;
   onToggleFollow: (teamName: string) => void;
 }
@@ -46,7 +47,18 @@ export function MatchView({
   onToggleSave,
   onToggleFollow,
 }: Props) {
-  const { status, error, state, winProb, events, freshEventIds, squad, fplLinked, fplAlerts } =
+  const {
+    status,
+    error,
+    state,
+    winProb,
+    events,
+    freshEventIds,
+    squad,
+    fplLinked,
+    fplAlerts,
+    feedHealth,
+  } =
     useMatchSocket(matchId);
 
   // Before any state arrives there is no score to show, so the whole view is a
@@ -84,7 +96,7 @@ export function MatchView({
         </a>
         <div className={styles.actionButtons}>
           {[state.homeTeam, state.awayTeam].map((team) => {
-            const on = followedTeams.has(team);
+            const on = isTeamFollowed(team, followedTeams);
             return (
               <button
                 key={team}
@@ -147,6 +159,23 @@ export function MatchView({
           <EventFeed events={events} freshEventIds={freshEventIds} state={state} />
         </div>
       </div>
+
+      {feedHealth && (
+        <div
+          className={`${styles.feedBanner} ${
+            feedHealth.status === 'stopped' ? styles.feedBannerStopped : ''
+          }`}
+          role="status"
+        >
+          <span className={styles.feedBannerDot} aria-hidden="true" />
+          <span>{feedHealth.message}</span>
+          {feedHealth.lastUpdate && (
+            <span className={styles.feedBannerAge}>
+              Last update {new Date(feedHealth.lastUpdate).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      )}
 
       <MatchStatsPanel
         matchId={state.matchId}

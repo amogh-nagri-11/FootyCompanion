@@ -8,6 +8,7 @@ import type {
   ServerMessage,
   SquadView,
   WinProb,
+  FeedHealth,
 } from '../types';
 
 /**
@@ -38,6 +39,8 @@ interface MatchData {
   /** Null until the user links an FPL team, or if this is not a PL fixture. */
   squad: SquadView | null;
   fplLinked: boolean;
+  /** Null while the feed is healthy; set when the server says it is not. */
+  feedHealth: FeedHealth | null;
   fplAlerts: FplAlert[];
 }
 
@@ -50,6 +53,7 @@ const INITIAL: MatchData = {
   freshEventIds: new Set(),
   squad: null,
   fplLinked: false,
+  feedHealth: null,
   fplAlerts: [],
 };
 
@@ -106,6 +110,16 @@ export function useMatchSocket(matchId: string): MatchData {
           status: prev.state ? 'live' : 'waiting',
           error: null,
           fplLinked: msg.fplLinked ?? prev.fplLinked,
+        }));
+        return;
+      }
+
+      if (msg.type === 'feed_health') {
+        // A recovery arrives as status 'ok', which clears the banner rather
+        // than leaving a stale warning above a feed that is working again.
+        setData((prev) => ({
+          ...prev,
+          feedHealth: msg.health.status === 'ok' ? null : msg.health,
         }));
         return;
       }

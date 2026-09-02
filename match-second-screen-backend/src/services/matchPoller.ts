@@ -3,10 +3,17 @@ import { config } from '../config.js';
 import { fetchLiveMatch, MatchEvent, LiveMatchState } from './sportsApi.js';
 import { calculateWinProbability } from './winProbability.js';
 import { archiveMatch } from './archive.js';
-import { calculateMomentum, Momentum } from './momentum.js';
+import { calculateMomentum, Momentum, storeMomentum } from './momentum.js';
 import { recordWinProb, getWinProbSeries, clearWinProbSeries } from './winProbSeries.js';
 import { findTurningPoint } from './turningPoint.js';
 import { generateMatchSummary } from './matchSummary.js';
+import {
+  clearFeedHealth,
+  FeedHealth,
+  recordFailure,
+  recordSuccess,
+} from './feedHealth.js';
+import { pollIntervalFor } from './apiQuota.js';
 
 type WinProb = ReturnType<typeof calculateWinProbability>;
 
@@ -18,7 +25,10 @@ type EventCallback = (
   momentum: Momentum
 ) => void;
 
+type HealthCallback = (matchId: string, health: FeedHealth) => void;
+
 const activePolls = new Map<string, NodeJS.Timeout>();
+const healthCallbacks = new Map<string, HealthCallback>();
 const consecutiveFailures = new Map<string, number>();
 const lastBroadcast = new Map<string, string>();
 const lastKnownState = new Map<
@@ -46,7 +56,13 @@ function recordPollFailure(matchId: string, err: unknown) {
     err instanceof Error ? err.message : err
   );
 
-  if (failures >= config.maxConsecutivePollFailures) {
+  const gaveUp = failures >= config.maxConsecutivePollFailures;
+  // Tell the room before tearing down: after stopPolling there is no callback
+  // left to tell them with, and "it just stopped" is the state we are fixing.
+  const health = recordFailure(matchId, err, failures, gaveUp);
+  healthCallbacks.get(matchId)?.(matchId, health);
+
+  if (gaveUp) {
     console.error(`Giving up on ${matchId} after ${failures} consecutive failures.`);
     stopPolling(matchId);
   }
@@ -58,6 +74,10 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   console.log(`Polling ${matchId}...`); // temporary
   const state = await fetchLiveMatch(matchId);
   consecutiveFailures.delete(matchId);
+
+  // Announce a recovery so a banner raised by an earlier failure comes down.
+  const recovered = recordSuccess(matchId);
+  if (recovered) healthCallbacks.get(matchId)?.(matchId, recovered);
 
   const seenKey = `match:${matchId}:seen_events`;
   const seenIds: string[] = await redis.smembers(seenKey);
@@ -94,12 +114,7 @@ async function pollOnce(matchId: string, onNewEvents: EventCallback) {
   // Cached per match under the same key prefix and TTL discipline as the
   // seen-events set, so a restarted server or a late joiner can be served the
   // last known momentum without waiting for the next event.
-  await redis.set(
-    `match:${matchId}:momentum`,
-    JSON.stringify(momentum),
-    'EX',
-    config.seenEventsTtlSeconds
-  );
+  await storeMomentum(matchId, momentum);
 
   lastKnownState.set(matchId, { state: { ...state, events: history }, winProb, momentum });
 
@@ -163,17 +178,26 @@ async function finaliseMatch(
 export function startPolling(
   matchId: string,
   onNewEvents: EventCallback,
-  intervalMs = config.pollIntervalMs
+  onHealthChange?: HealthCallback,
+  intervalMs?: number
 ) {
   if (activePolls.has(matchId)) return;
 
+  if (onHealthChange) healthCallbacks.set(matchId, onHealthChange);
   consecutiveFailures.delete(matchId);
   lastBroadcast.delete(matchId);
+  clearFeedHealth(matchId);
+
+  // Spaced against how many matches are already being polled, so the shared
+  // daily budget is divided rather than multiplied. Computed once per match:
+  // re-pacing every live poll would make the cadence jitter as viewers come
+  // and go, and the budget check itself is the real backstop.
+  const interval = intervalMs ?? pollIntervalFor(activePolls.size + 1);
   pollOnce(matchId, onNewEvents).catch((err) => recordPollFailure(matchId, err));
 
   const timer = setInterval(() => {
     pollOnce(matchId, onNewEvents).catch((err) => recordPollFailure(matchId, err));
-  }, intervalMs);
+  }, interval);
 
   activePolls.set(matchId, timer);
 }
@@ -185,6 +209,7 @@ export function stopPolling(matchId: string) {
     activePolls.delete(matchId);
   }
   consecutiveFailures.delete(matchId);
+  healthCallbacks.delete(matchId);
   lastBroadcast.delete(matchId);
   lastKnownState.delete(matchId);
   accumulatedEvents.delete(matchId);

@@ -188,3 +188,47 @@
     gap: 16px;
   }
 }
+
+/* Feed health banner ---------------------------------------------------- */
+
+/* A stale scoreboard looks exactly like a quiet match, so when the feed stops
+   the page has to say so rather than leaving a frozen score to speak for
+   itself. Tone tracks severity: a wobble is a warning, a stopped feed is not. */
+.feedBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.feedBannerStopped {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.feedBannerDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.feedBannerStopped .feedBannerDot {
+  background: var(--danger);
+}
+
+.feedBannerAge {
+  margin-left: auto;
+  flex: none;
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}

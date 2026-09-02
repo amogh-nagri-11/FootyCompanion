@@ -63,4 +63,8 @@ export const config = {
   // rather than letting the user walk into a guaranteed failure. Raise it on a
   // paid plan — the code has no other opinion about the range.
   fixtureDateWindowDays: positiveInt('FIXTURE_DATE_WINDOW_DAYS', 1),
+  // The upstream plan's daily request cap. Every call takes a ticket against
+  // this shared budget, so concurrent matches can no longer spend it twice
+  // over without noticing. Raise it with the plan.
+  apiDailyRequestLimit: positiveInt('API_DAILY_REQUEST_LIMIT', 100),
 };

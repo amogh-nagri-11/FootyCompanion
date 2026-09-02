@@ -17,6 +17,11 @@ export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 2,
   connectTimeout: 2000,
   retryStrategy: (attempt) => Math.min(attempt * 200, 5000),
+  // The unit suite imports modules that import this one. Connecting on import
+  // would make `npm test` depend on a running Redis and spew reconnect noise,
+  // so under the test runner the socket is only opened if something asks for
+  // it — and `redisReady()` reports false, which every caller already handles.
+  lazyConnect: Boolean(process.env.VITEST),
 });
 
 // One line per outage rather than one per retry: the strategy above reconnects
@@ -41,6 +46,17 @@ redis.on('ready', () => {
   down = false;
   lastErrorLoggedAt = 0;
 });
+
+/**
+ * Whether Redis is currently usable.
+ *
+ * Callers that keep *state* in Redis rather than a cached copy (the request
+ * quota, the seen-event set) need to know this: for them a silent miss is not
+ * a slower answer but a wrong one, and they choose their own fallback.
+ */
+export function redisReady(): boolean {
+  return !down && redis.status === 'ready';
+}
 
 /**
  * Longest a cache lookup may delay the request it is meant to speed up. Well
