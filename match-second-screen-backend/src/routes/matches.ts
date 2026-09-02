@@ -148,7 +148,7 @@ export async function matchRoutes(app: FastifyInstance) {
     if (!data) return reply.code(404).send({ error: 'Not in the archive' });
 
     try {
-      const answer = await answerMatchQuestion(
+      const { answer, cached } = await answerMatchQuestion(
         {
           matchId: data.match_id,
           homeTeam: data.home_team,
@@ -161,7 +161,7 @@ export async function matchRoutes(app: FastifyInstance) {
         },
         turns
       );
-      return { answer };
+      return { answer, cached };
     } catch (err) {
       if (err instanceof ChatUnavailableError) {
         return reply.code(503).send({ error: err.message, unavailable: true });
