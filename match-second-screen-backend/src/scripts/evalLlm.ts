@@ -29,6 +29,11 @@ import { answerMatchQuestion, ArchivedMatchContext } from '../services/matchChat
 import { LiveMatchState, MatchEvent } from '../services/sportsApi.js';
 import { TurningPoint } from '../services/turningPoint.js';
 
+/** Gap between requests, to stay inside the provider's per-minute budget. */
+const PACE_MS = 12_000;
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface Check {
   name: string;
   /** Returns null when the check passes, or a reason when it fails. */
@@ -116,7 +121,14 @@ const GROUNDING: Check[] = [
   },
   {
     name: 'is not truncated mid-sentence',
-    run: (t) => (/[.!?]"?\s*$/.test(t.trim()) ? null : 'does not end on a sentence boundary'),
+    // Closing punctuation may follow the stop — a straight or curly quote, or
+    // a bracket. Allowing only `"` produced false failures on answers that
+    // quoted the data and ended `lost.”`, which is exactly the kind of
+    // cried-wolf result that makes a harness worth ignoring.
+    run: (t) =>
+      /[.!?][)\]"'\u2019\u201d]*\s*$/.test(t.trim())
+        ? null
+        : 'does not end on a sentence boundary',
   },
 ];
 
@@ -224,6 +236,7 @@ async function evaluateSummaries(runs: number) {
   const lengths: number[] = [];
 
   for (let i = 0; i < runs; i++) {
+    await pause(PACE_MS);
     const { summary, generated } = await generateMatchSummary(STATE, EVENTS, TURNING_POINT);
     if (!generated) fallbacks++;
     lengths.push(summary.length);
@@ -253,11 +266,21 @@ async function evaluateChat() {
 
   let passed = 0;
   for (const testCase of CHAT_CASES) {
+    // The free tier caps tokens per minute, and each of these carries the
+    // whole data block. Firing them back to back rate-limits the harness into
+    // reporting failures that are really 429s — a suite that cries wolf is
+    // worse than none, so pace them.
+    await pause(PACE_MS);
+
     let answer: string;
     try {
-      ({ answer } = await answerMatchQuestion(MATCH, [
-        { role: 'user', content: testCase.question },
-      ]));
+      ({ answer } = await answerMatchQuestion(
+        MATCH,
+        [{ role: 'user', content: testCase.question }],
+        // Grade a fresh generation every run. A cached answer would make the
+        // second run agree with the first by construction.
+        { skipCache: true }
+      ));
     } catch (err) {
       report(testCase.name, [`request failed: ${err instanceof Error ? err.message : err}`]);
       continue;

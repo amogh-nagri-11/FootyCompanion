@@ -40,10 +40,25 @@ function modelFor(provider: Exclude<LlmProvider, 'none'>): string {
   return config.llmModel || DEFAULT_MODELS[provider];
 }
 
+/**
+ * Seconds to wait from a 429 body, which names its own delay:
+ * "Please try again in 2.13s". Falls back to a second when it does not.
+ */
+function retryAfterSeconds(body: string): number {
+  const match = body.match(/try again in ([\d.]+)\s*s/i);
+  const parsed = match ? Number(match[1]) : NaN;
+  // Cap it: a provider asking for a minute should fail fast, not hold the
+  // reader's request open while they wait for a spinner.
+  return Number.isFinite(parsed) ? Math.min(parsed, 8) : 1;
+}
+
+const MAX_RATE_LIMIT_RETRIES = 2;
+
 async function callGroq(
   system: string,
   turns: ChatMessage[],
-  maxTokens: number
+  maxTokens: number,
+  attempt = 0
 ): Promise<string> {
   const groqModel = modelFor('groq');
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -69,6 +84,20 @@ async function callGroq(
 
   if (!res.ok) {
     const body = (await res.text()).slice(0, 300);
+
+    // Rate limits are a matter of waiting, not a failure. The free tier's
+    // per-minute token budget is easily hit by two readers asking at once, and
+    // without this the second one is told the model "did not return an answer"
+    // for something that would have worked a second later.
+    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const wait = retryAfterSeconds(body);
+      console.warn(
+        `Groq rate limited; retrying in ${wait}s (attempt ${attempt + 1}/${MAX_RATE_LIMIT_RETRIES})`
+      );
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+      return callGroq(system, turns, maxTokens, attempt + 1);
+    }
+
     // A retired model is the one failure that looks identical to "no provider
     // configured" from the outside — every summary quietly reverts to the
     // template — so name it rather than leaving it in a generic 400.

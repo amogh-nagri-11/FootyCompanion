@@ -356,13 +356,18 @@ const ANSWER_TTL_SECONDS = 24 * 60 * 60;
  */
 export async function answerMatchQuestion(
   match: ArchivedMatchContext,
-  turns: ChatMessage[]
+  turns: ChatMessage[],
+  options: { skipCache?: boolean } = {}
 ): Promise<{ answer: string; cached: boolean }> {
   if (activeProvider() === 'none') throw new ChatUnavailableError();
 
   const key = threadKey(match.matchId, turns);
-  const hit = await cacheGetJson<{ answer: string }>(key);
-  if (hit) return { answer: hit.answer, cached: true };
+  // The evaluation harness bypasses the cache: grading a stored answer would
+  // make every run after the first a no-op that always agrees with itself.
+  if (!options.skipCache) {
+    const hit = await cacheGetJson<{ answer: string }>(key);
+    if (hit) return { answer: hit.answer, cached: true };
+  }
 
   const data = await buildContext(match);
   // Unpredictable per request: a fence the caller could guess is no fence.
@@ -379,6 +384,6 @@ export async function answerMatchQuestion(
     throw new Error('The model did not return an answer. Try again in a moment.');
   }
 
-  await cacheSetJson(key, { answer }, ANSWER_TTL_SECONDS);
+  if (!options.skipCache) await cacheSetJson(key, { answer }, ANSWER_TTL_SECONDS);
   return { answer, cached: false };
 }
